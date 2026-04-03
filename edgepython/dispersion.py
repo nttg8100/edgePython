@@ -18,7 +18,7 @@ from .smoothing import locfit_by_col, loess_by_col
 from .limma_port import squeeze_var, choose_lowess_span
 from .dispersion_lowlevel import (
     adjusted_profile_lik, adjusted_profile_lik_grid, maximize_interpolant,
-    cond_log_lik_der_delta, common_cond_log_lik_der_delta,
+    cond_log_lik_der_delta, common_cond_log_lik_der_delta, _cond_log_lik_grid,
     disp_cox_reid, disp_cox_reid_interpolate_tagwise,
     disp_cox_reid_spline_trend, disp_cox_reid_power_trend,
     disp_bin_trend, disp_pearson, disp_deviance
@@ -217,11 +217,12 @@ def estimate_disp(y, design=None, group=None, lib_size=None, offset=None,
         y_pseudo = eq['pseudo.counts'][sel]
         y_split = split_into_groups(y_pseudo, group=group)
 
-        # Compute log-likelihoods on grid
-        for j in range(grid_length):
-            for grp_data in y_split:
-                l0[:, j] += cond_log_lik_der_delta(grp_data[sel] if grp_data.shape[0] > np.sum(sel) else grp_data,
-                                                    grid_vals[j], der=0)
+        # Compute log-likelihoods on grid (vectorized across all grid points)
+        r_vals = (1.0 / np.maximum(grid_vals, 1e-300)) - 1.0
+        sel_sum = np.sum(sel)
+        for grp_data in y_split:
+            grp = grp_data[sel] if grp_data.shape[0] > sel_sum else grp_data
+            l0 += _cond_log_lik_grid(grp, r_vals)
     else:
         # GLM edgeR approach
         design = np.asarray(design, dtype=np.float64)
@@ -626,9 +627,9 @@ def estimate_tagwise_disp(y, group=None, lib_size=None, dispersion=None,
     grid_delta = grid_disp / (1 + grid_disp)
 
     l0 = np.zeros((ntags, grid_length))
-    for j in range(grid_length):
-        for grp_data in y_split:
-            l0[:, j] += cond_log_lik_der_delta(grp_data, grid_delta[j], der=0)
+    r_vals = (1.0 / np.maximum(grid_delta, 1e-300)) - 1.0
+    for grp_data in y_split:
+        l0 += _cond_log_lik_grid(grp_data, r_vals)
 
     # Compute AveLogCPM for smoothing
     alc = ave_log_cpm(y, lib_size=lib_size)

@@ -91,6 +91,12 @@ def mglm_levenberg(y, design, dispersion=0, offset=0, weights=None,
     lev = np.full(ngenes, 1e-3)
     coef_idx = np.arange(ncoefs)
 
+    # Precompute design outer-product matrix: design_outer[j, k*ncoefs+l] = X[j,k]*X[j,l]
+    # XtWX[g] = working_w_a[g] @ design_outer  (reshaped to (ncoefs, ncoefs))
+    # This converts the 3-operand einsum to a single BLAS-3 matmul per iteration.
+    design_outer = (design[:, :, None] * design[:, None, :]).reshape(nlibs, ncoefs * ncoefs)
+    design_T = design.T  # (ncoefs, nlibs) — precomputed for eta computation
+
     for it in range(maxit):
         if not np.any(active):
             break
@@ -101,7 +107,7 @@ def mglm_levenberg(y, design, dispersion=0, offset=0, weights=None,
             # Compute mu for active genes: eta = design @ beta + offset
             # beta[a] is (n_a, ncoefs), design is (nlibs, ncoefs)
             # eta[g, j] = sum_k(design[j,k] * beta[g,k]) + offset[g,j]
-            eta_a = beta[a] @ design.T + offset_mat[a]
+            eta_a = beta[a] @ design_T + offset_mat[a]
             mu_a = np.exp(np.clip(eta_a, -500, 500))
             mu_a = np.maximum(mu_a, 1e-300)
 
@@ -114,12 +120,12 @@ def mglm_levenberg(y, design, dispersion=0, offset=0, weights=None,
             z_a = (y[a] - mu_a) / mu_a
 
             # Batch XtWX: (n_a, ncoefs, ncoefs)
-            # XtWX[g,k,l] = sum_j(design[j,k] * working_w[g,j] * design[j,l])
-            XtWX = np.einsum('gj,jk,jl->gkl', working_w_a, design, design)
+            # working_w_a @ design_outer: (n_a, nlibs) @ (nlibs, p²) → (n_a, p²)
+            XtWX = (working_w_a @ design_outer).reshape(n_a, ncoefs, ncoefs)
 
             # Batch XtWz: (n_a, ncoefs)
-            # XtWz[g,k] = sum_j(design[j,k] * working_w[g,j] * z[g,j])
-            XtWz = np.einsum('jk,gj->gk', design, working_w_a * z_a)
+            # (n_a, nlibs) @ (nlibs, ncoefs) → (n_a, ncoefs)
+            XtWz = (working_w_a * z_a) @ design
 
             # Add per-gene Levenberg damping to diagonal
             diag_vals = np.diagonal(XtWX, axis1=1, axis2=2)
@@ -135,7 +141,7 @@ def mglm_levenberg(y, design, dispersion=0, offset=0, weights=None,
 
             # Trial update
             beta_new_a = beta[a] + delta
-            eta_new_a = beta_new_a @ design.T + offset_mat[a]
+            eta_new_a = beta_new_a @ design_T + offset_mat[a]
             mu_new_a = np.exp(np.clip(eta_new_a, -500, 500))
             mu_new_a = np.maximum(mu_new_a, 1e-300)
 
@@ -186,24 +192,23 @@ def mglm_levenberg(y, design, dispersion=0, offset=0, weights=None,
 
 
 def _get_levenberg_start(y, offset, dispersion, weights, design, use_null):
-    """Get starting values for Levenberg-Marquardt."""
+    """Get starting values for Levenberg-Marquardt (vectorized over genes)."""
     ngenes, nlibs = y.shape
     ncoefs = design.shape[1]
     beta = np.zeros((ngenes, ncoefs))
 
     if use_null:
-        # Start from null model (intercept only via offset)
-        for g in range(ngenes):
-            lib_size = np.exp(offset[g] if offset.ndim == 2 else offset)
-            total = np.sum(y[g])
-            total_lib = np.sum(lib_size)
-            if total > 0 and total_lib > 0:
-                mu_hat = total / total_lib
-                # Solve for beta[0] such that exp(X*beta + offset) ≈ y
-                # With null start, set all beta to 0 except intercept
-                beta[g, 0] = np.log(mu_hat) if mu_hat > 0 else -20
+        # Vectorized null start: estimate intercept from total counts / total lib size
+        total_y = np.sum(y, axis=1)  # (ngenes,)
+        if offset.ndim == 2:
+            total_lib = np.sum(np.exp(offset), axis=1)  # (ngenes,)
+        else:
+            total_lib = np.full(ngenes, np.sum(np.exp(offset)))
+        valid = (total_y > 0) & (total_lib > 0)
+        mu_hat = np.where(valid, total_y / np.maximum(total_lib, 1e-300), 0.0)
+        beta[:, 0] = np.where(valid & (mu_hat > 0), np.log(np.maximum(mu_hat, 1e-300)), -20.0)
     else:
-        # Start from y values
+        # Start from y values — per-gene lstsq (infrequently called)
         for g in range(ngenes):
             lib_size = np.exp(offset[g] if offset.ndim == 2 else offset)
             y_norm = y[g] / np.maximum(lib_size, 1e-300)

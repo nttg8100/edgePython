@@ -116,7 +116,9 @@ def adjusted_profile_lik_grid(grid_dispersions, y, design, offset, weights=None)
         w = np.ones_like(y)
 
     grid_dispersions = np.asarray(grid_dispersions, dtype=np.float64)
-    ngrid = len(grid_dispersions)
+    # Support both (ngrid,) scalar-per-grid and (ngenes, ngrid) per-gene-per-grid
+    disp_2d = grid_dispersions.ndim == 2
+    ngrid = grid_dispersions.shape[-1]
 
     # Precompute group structure (same for all grid points)
     group = design_as_factor(design)
@@ -140,8 +142,11 @@ def adjusted_profile_lik_grid(grid_dispersions, y, design, offset, weights=None)
     apl = np.empty((ngenes, ngrid), dtype=np.float64)
 
     for gi in range(ngrid):
-        d = grid_dispersions[gi]
-        disp_scalar = np.float64(d)
+        # d is (ngenes,) for per-gene dispersions or a scalar for grid dispersions
+        if disp_2d:
+            d = grid_dispersions[:, gi]          # (ngenes,)
+        else:
+            d = np.full(ngenes, grid_dispersions[gi])  # (ngenes,)
 
         if is_oneway:
             # Fit each group with mglm_one_group directly
@@ -150,7 +155,7 @@ def adjusted_profile_lik_grid(grid_dispersions, y, design, offset, weights=None)
                 y_g = y[:, cols]
                 off_g = offset[:, cols]
                 w_g = w[:, cols]
-                disp_g = np.full_like(y_g, disp_scalar)
+                disp_g = d[:, None] * np.ones(len(cols))
                 b = mglm_one_group(y_g, dispersion=disp_g, offset=off_g,
                                    weights=w_g)
                 for jj in cols:
@@ -162,16 +167,17 @@ def adjusted_profile_lik_grid(grid_dispersions, y, design, offset, weights=None)
                           weights=weights, prior_count=0)
             mu = fit['fitted.values']
 
-        # NB log-likelihood (vectorized)
+        # NB log-likelihood (vectorized over genes)
         mu_safe = np.maximum(mu, 1e-300)
-        r = 1.0 / max(d, 1e-300)
+        r = 1.0 / np.maximum(d, 1e-300)   # (ngenes,)
+        r_col = r[:, None]                  # (ngenes, 1)
 
-        ll = np.sum(w * (gammaln(y + r) - gammaln(r) - lgamma_y1
-                    + r * np.log(r) + y * np.log(mu_safe)
-                    - (r + y) * np.log(r + mu_safe)), axis=1)
+        ll = np.sum(w * (gammaln(y + r_col) - gammaln(r_col) - lgamma_y1
+                    + r_col * np.log(r_col) + y * np.log(mu_safe)
+                    - (r_col + y) * np.log(r_col + mu_safe)), axis=1)
 
         # Cox-Reid adjustment: -0.5 * log|X'WX|
-        working_w = w * mu_safe / (1.0 + d * mu_safe)
+        working_w = w * mu_safe / (1.0 + d[:, None] * mu_safe)
         working_w = np.maximum(working_w, 1e-300)
 
         XtWX = np.einsum('gj,jk,jl->gkl', working_w, design, design)
@@ -555,6 +561,35 @@ def common_cond_log_lik_der_delta(y_split, delta, der=0):
     return total
 
 
+def _cond_log_lik_grid(y, r_vals):
+    """Vectorized conditional log-likelihood (der=0) for a grid of r values.
+
+    Equivalent to stacking cond_log_lik_der_size(y, r, der=0) for each r in
+    r_vals, but computed with a single 3-D gammaln broadcast — eliminating the
+    Python loop over grid points.
+
+    Parameters
+    ----------
+    y : ndarray (ngenes, nsamples)
+    r_vals : ndarray (ngrid,)  —  r = 1/dispersion values (same for all genes)
+
+    Returns
+    -------
+    ndarray (ngenes, ngrid)
+    """
+    y = np.asarray(y, dtype=np.float64)
+    r_vals = np.asarray(r_vals, dtype=np.float64)
+    n = y.shape[1]
+    m = np.mean(y, axis=1)  # (ngenes,)
+
+    # y[:, :, None] + r_vals[None, None, :] -> (ngenes, nsamples, ngrid)
+    ll = (np.sum(gammaln(y[:, :, None] + r_vals[None, None, :]), axis=1)  # (ngenes, ngrid)
+          + gammaln(n * r_vals)[None, :]                                    # (1, ngrid)
+          - gammaln(n * (m[:, None] + r_vals[None, :]))                     # (ngenes, ngrid)
+          - n * gammaln(r_vals)[None, :])                                   # (1, ngrid)
+    return ll
+
+
 def disp_cox_reid(y, design=None, offset=None, weights=None, ave_log_cpm_vals=None,
                   interval=(0, 4), tol=1e-5, min_row_sum=5, subset=10000):
     """Cox-Reid APL estimator of common dispersion.
@@ -746,11 +781,11 @@ def disp_cox_reid_interpolate_tagwise(y, design, offset=None, dispersion=None,
     # Posterior profile likelihood
     prior_n = prior_df / (nlibs - ncoefs)
     spline_pts = np.linspace(grid_range[0], grid_range[1], grid_npts)
-    apl = np.zeros((ntags, grid_npts))
 
-    for i in range(grid_npts):
-        spline_disp = dispersion * 2 ** spline_pts[i]
-        apl[:, i] = adjusted_profile_lik(spline_disp, y, design, offset, weights=weights)
+    # Build (ntags, ngrid) dispersion matrix and evaluate APL in one batched call,
+    # avoiding repeated setup overhead (gammaln(y+1), group structure, etc.)
+    disp_grid = dispersion[:, None] * (2.0 ** spline_pts[None, :])  # (ntags, ngrid)
+    apl = adjusted_profile_lik_grid(disp_grid, y, design, offset, weights=weights)
 
     if trend:
         o = np.argsort(ave_log_cpm_vals)
