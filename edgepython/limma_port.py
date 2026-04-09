@@ -7,7 +7,7 @@ chooseLowessSpan, and related utility functions.
 """
 
 import numpy as np
-from scipy import stats, interpolate
+from scipy import stats
 import warnings
 
 

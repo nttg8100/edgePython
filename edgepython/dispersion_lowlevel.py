@@ -11,13 +11,11 @@ import numpy as np
 import warnings
 from scipy.special import gammaln, digamma, polygamma
 from scipy.optimize import minimize_scalar, minimize
-from scipy.interpolate import CubicSpline
 from numba import njit
 
 from .utils import (expand_as_matrix, systematic_subset, moving_average_by_col,
                     cut_with_min_n)
 from .expression import ave_log_cpm
-from .limma_port import is_fullrank
 
 
 def _cox_reid_adjust_from_xtwx(XtWX):

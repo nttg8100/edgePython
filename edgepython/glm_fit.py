@@ -7,12 +7,11 @@ Port of edgeR's glmFit, glmQLFit, mglmOneGroup, mglmOneWay.
 
 import numpy as np
 import warnings
-from .compressed_matrix import (CompressedMatrix, compress_offsets,
-                                 compress_weights, compress_dispersions)
+from .compressed_matrix import CompressedMatrix
 from .glm_levenberg import mglm_levenberg, nbinom_deviance
 from .utils import (expand_as_matrix, design_as_factor, pred_fc,
                     add_prior_count, residual_df)
-from .limma_port import squeeze_var, non_estimable, is_fullrank, choose_lowess_span
+from .limma_port import squeeze_var, non_estimable, choose_lowess_span
 
 
 def mglm_one_group(y, dispersion=0, offset=0, weights=None,

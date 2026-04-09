@@ -9,8 +9,8 @@ nearestReftoX, getPriorN, zscoreNBinom, binomTest, dropEmptyLevels, etc.
 
 import numpy as np
 import pandas as pd
-from scipy import stats, special
-from .compressed_matrix import CompressedMatrix, compress_offsets, compress_prior
+from scipy import stats
+from .compressed_matrix import CompressedMatrix
 import warnings
 
 
