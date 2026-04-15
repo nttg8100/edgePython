@@ -169,9 +169,9 @@ class DGEList(_EdgeRBase):
             if len(key) == 2:
                 i, j = key
             else:
-                raise IndexError("Two subscripts required")
+                raise IndexError("Too many subscripts")
         else:
-            raise IndexError("Two subscripts required")
+            i, j = key, slice(None)
 
         rownames = _get_rownames(self)
         colnames = _get_colnames(self)
@@ -188,7 +188,7 @@ class DGEList(_EdgeRBase):
                 out[k] = _subset_matrix_or_df(out[k], i_idx)
         for k in self._JX:
             if k in out and out[k] is not None:
-                out[k] = _subset_matrix_or_df(out[k], j=j_idx)
+                out[k] = _subset_matrix_or_df(out[k], i=j_idx)
         for k in self._I:
             if k in out and out[k] is not None:
                 out[k] = _subset_matrix_or_df(out[k], i_idx)
