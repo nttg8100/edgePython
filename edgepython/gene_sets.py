@@ -206,7 +206,7 @@ def _extract_effects(y, design, contrast):
                     j = [i for i in range(p) if i != contrast_idx] + [contrast_idx]
                     design = design[:, j]
             else:
-                QR_c = np.linalg.qr(contrast_vec.reshape(-1, 1))
+                QR_c = np.linalg.qr(contrast_vec.reshape(-1, 1), mode='complete')
                 design = (QR_c[0].T @ design.T).T
                 if QR_c[1][0, 0] < 0:
                     design[:, 0] = -design[:, 0]
@@ -280,7 +280,7 @@ def _camera_default(y, index, design, contrast, weights=None,
                     j = [i for i in range(p) if i != contrast_idx] + [contrast_idx]
                     design = design[:, j]
             else:
-                QR_c = np.linalg.qr(contrast_vec.reshape(-1, 1))
+                QR_c = np.linalg.qr(contrast_vec.reshape(-1, 1), mode='complete')
                 design = (QR_c[0].T @ design.T).T
                 if QR_c[1][0, 0] < 0:
                     design[:, 0] = -design[:, 0]
@@ -387,6 +387,8 @@ def _camera_default(y, index, design, contrast, weights=None,
     if nsets > 1:
         _, fdr, _, _ = multipletests(df['PValue'].values, method='fdr_bh')
         df['FDR'] = fdr
+    else:
+        df['FDR'] = df['PValue']
 
     if sort and nsets > 1:
         df = df.sort_values('PValue')
