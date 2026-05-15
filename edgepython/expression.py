@@ -10,8 +10,7 @@ import warnings
 from .utils import expand_as_matrix, add_prior_count
 
 
-def cpm(y, lib_size=None, offset=None, log=False, prior_count=2,
-        normalized_lib_sizes=True):
+def cpm(y, lib_size=None, offset=None, log=False, prior_count=2, normalized_lib_sizes=True):
     """Counts per million.
 
     Port of edgeR's cpm().
@@ -36,21 +35,21 @@ def cpm(y, lib_size=None, offset=None, log=False, prior_count=2,
     ndarray of CPM values.
     """
     # DGEList input
-    if isinstance(y, dict) and 'counts' in y:
+    if isinstance(y, dict) and "counts" in y:
         dge = y
-        ls = dge['samples']['lib.size'].values
+        ls = dge["samples"]["lib.size"].values
 
-        if dge.get('offset') is not None:
+        if dge.get("offset") is not None:
             ls = None
-            offset = dge['offset']
+            offset = dge["offset"]
         elif normalized_lib_sizes:
-            ls = ls * dge['samples']['norm.factors'].values
+            ls = ls * dge["samples"]["norm.factors"].values
 
-        return _cpm_default(dge['counts'], lib_size=ls, offset=offset,
-                            log=log, prior_count=prior_count)
+        return _cpm_default(
+            dge["counts"], lib_size=ls, offset=offset, log=log, prior_count=prior_count
+        )
 
-    return _cpm_default(y, lib_size=lib_size, offset=offset,
-                        log=log, prior_count=prior_count)
+    return _cpm_default(y, lib_size=lib_size, offset=offset, log=log, prior_count=prior_count)
 
 
 def _cpm_default(y, lib_size=None, offset=None, log=False, prior_count=2):
@@ -88,11 +87,14 @@ def _cpm_default(y, lib_size=None, offset=None, log=False, prior_count=2):
             raise ValueError("library sizes should be greater than zero")
 
     if log:
-        out = add_prior_count(y, lib_size=lib_size if lib_size.ndim == 1 else None,
-                              offset=np.log(lib_size) if lib_size.ndim == 1 else offset,
-                              prior_count=prior_count)
-        y_aug = out['y']
-        offset_aug = out['offset']
+        out = add_prior_count(
+            y,
+            lib_size=lib_size if lib_size.ndim == 1 else None,
+            offset=np.log(lib_size) if lib_size.ndim == 1 else offset,
+            prior_count=prior_count,
+        )
+        y_aug = out["y"]
+        offset_aug = out["offset"]
 
         if isinstance(offset_aug, np.ndarray) and offset_aug.ndim == 1:
             lib_size_aug = np.exp(offset_aug)
@@ -111,8 +113,9 @@ def _cpm_default(y, lib_size=None, offset=None, log=False, prior_count=2):
             return y / lib_size * 1e6
 
 
-def rpkm(y, gene_length, lib_size=None, offset=None, log=False, prior_count=2,
-         normalized_lib_sizes=True):
+def rpkm(
+    y, gene_length, lib_size=None, offset=None, log=False, prior_count=2, normalized_lib_sizes=True
+):
     """Reads per kilobase per million.
 
     Port of edgeR's rpkm().
@@ -127,13 +130,13 @@ def rpkm(y, gene_length, lib_size=None, offset=None, log=False, prior_count=2,
         As for cpm().
     """
     # Extract gene_length from DGEList if string
-    if isinstance(y, dict) and 'counts' in y:
+    if isinstance(y, dict) and "counts" in y:
         if isinstance(gene_length, str):
-            gene_length = y['genes'][gene_length].values
+            gene_length = y["genes"][gene_length].values
         elif gene_length is None:
-            for col in ['Length', 'length']:
-                if col in y.get('genes', {}).columns if y.get('genes') is not None else False:
-                    gene_length = y['genes'][col].values
+            for col in ["Length", "length"]:
+                if col in y.get("genes", {}).columns if y.get("genes") is not None else False:
+                    gene_length = y["genes"][col].values
                     break
             if gene_length is None:
                 raise ValueError("Gene lengths not found")
@@ -141,8 +144,14 @@ def rpkm(y, gene_length, lib_size=None, offset=None, log=False, prior_count=2,
     gene_length = np.asarray(gene_length, dtype=np.float64)
     gene_length_kb = gene_length / 1000
 
-    result = cpm(y, lib_size=lib_size, offset=offset, log=log,
-                 prior_count=prior_count, normalized_lib_sizes=normalized_lib_sizes)
+    result = cpm(
+        y,
+        lib_size=lib_size,
+        offset=offset,
+        log=log,
+        prior_count=prior_count,
+        normalized_lib_sizes=normalized_lib_sizes,
+    )
 
     if log:
         return result - np.log2(gene_length_kb[:, np.newaxis])
@@ -168,36 +177,54 @@ def tpm(y, effective_tx_length, rta_overdispersion=None, shrunk=False):
     return t / avg_col_sum * 1e6
 
 
-def ave_log_cpm(y, lib_size=None, offset=None, prior_count=2, dispersion=None,
-                weights=None, normalized_lib_sizes=True):
+def ave_log_cpm(
+    y,
+    lib_size=None,
+    offset=None,
+    prior_count=2,
+    dispersion=None,
+    weights=None,
+    normalized_lib_sizes=True,
+):
     """Average log2-CPM for each gene.
 
     Port of edgeR's aveLogCPM().
     """
     # DGEList input
-    if isinstance(y, dict) and 'counts' in y:
+    if isinstance(y, dict) and "counts" in y:
         dge = y
-        ls = dge['samples']['lib.size'].values
+        ls = dge["samples"]["lib.size"].values
         if ls is None:
-            ls = dge['counts'].sum(axis=0)
+            ls = dge["counts"].sum(axis=0)
         if normalized_lib_sizes:
-            nf = dge['samples'].get('norm.factors')
+            nf = dge["samples"].get("norm.factors")
             if nf is not None:
                 ls = ls * nf.values
         if dispersion is None:
-            dispersion = dge.get('common.dispersion')
-        w = dge.get('weights')
-        return _ave_log_cpm_default(dge['counts'], lib_size=ls, offset=offset,
-                                    prior_count=prior_count, dispersion=dispersion,
-                                    weights=w)
+            dispersion = dge.get("common.dispersion")
+        w = dge.get("weights")
+        return _ave_log_cpm_default(
+            dge["counts"],
+            lib_size=ls,
+            offset=offset,
+            prior_count=prior_count,
+            dispersion=dispersion,
+            weights=w,
+        )
 
-    return _ave_log_cpm_default(y, lib_size=lib_size, offset=offset,
-                                prior_count=prior_count, dispersion=dispersion,
-                                weights=weights)
+    return _ave_log_cpm_default(
+        y,
+        lib_size=lib_size,
+        offset=offset,
+        prior_count=prior_count,
+        dispersion=dispersion,
+        weights=weights,
+    )
 
 
-def _ave_log_cpm_default(y, lib_size=None, offset=None, prior_count=2,
-                         dispersion=None, weights=None):
+def _ave_log_cpm_default(
+    y, lib_size=None, offset=None, prior_count=2, dispersion=None, weights=None
+):
     """Core aveLogCPM calculation.
 
     Uses mglmOneGroup to fit intercept-only NB GLM model, then converts
@@ -227,12 +254,11 @@ def _ave_log_cpm_default(y, lib_size=None, offset=None, prior_count=2,
 
     # Add prior counts and adjust offset
     out = add_prior_count(y, offset=offset, prior_count=prior_count)
-    y_aug = out['y']
-    offset_aug = out['offset']
+    y_aug = out["y"]
+    offset_aug = out["offset"]
 
     # Fit intercept-only NB GLM using mglmOneGroup
-    ab = mglm_one_group(y_aug, dispersion=dispersion, offset=offset_aug,
-                        weights=weights)
+    ab = mglm_one_group(y_aug, dispersion=dispersion, offset=offset_aug, weights=weights)
 
     # Convert fitted coefficient to log2-CPM: (ab + log(1e6)) / log(2)
     result = (ab + np.log(1e6)) / np.log(2)
@@ -240,32 +266,47 @@ def _ave_log_cpm_default(y, lib_size=None, offset=None, prior_count=2,
     return result
 
 
-def cpm_by_group(y, group=None, dispersion=0.05, offset=None, weights=None,
-                 log=False, prior_count=2):
+def cpm_by_group(
+    y, group=None, dispersion=0.05, offset=None, weights=None, log=False, prior_count=2
+):
     """Counts per million averaged by group.
 
     Port of edgeR's cpmByGroup().
     """
     # DGEList input
-    if isinstance(y, dict) and 'counts' in y:
+    if isinstance(y, dict) and "counts" in y:
         dge = y
         if group is None:
-            group = dge['samples']['group'].values
+            group = dge["samples"]["group"].values
         if offset is None:
             from .dgelist import get_offset
+
             offset = get_offset(dge)
-        w = dge.get('weights')
-        return _cpm_by_group_default(dge['counts'], group=group, dispersion=dispersion,
-                                     offset=offset, weights=w, log=log,
-                                     prior_count=prior_count)
+        w = dge.get("weights")
+        return _cpm_by_group_default(
+            dge["counts"],
+            group=group,
+            dispersion=dispersion,
+            offset=offset,
+            weights=w,
+            log=log,
+            prior_count=prior_count,
+        )
 
-    return _cpm_by_group_default(y, group=group, dispersion=dispersion,
-                                 offset=offset, weights=weights, log=log,
-                                 prior_count=prior_count)
+    return _cpm_by_group_default(
+        y,
+        group=group,
+        dispersion=dispersion,
+        offset=offset,
+        weights=weights,
+        log=log,
+        prior_count=prior_count,
+    )
 
 
-def _cpm_by_group_default(y, group=None, dispersion=0.05, offset=None,
-                          weights=None, log=False, prior_count=2):
+def _cpm_by_group_default(
+    y, group=None, dispersion=0.05, offset=None, weights=None, log=False, prior_count=2
+):
     """Core cpmByGroup calculation.
 
     Uses mglmOneWay to fit NB GLM per group, matching R's cpmByGroup.default.
@@ -286,36 +327,51 @@ def _cpm_by_group_default(y, group=None, dispersion=0.05, offset=None,
 
     if log:
         out = add_prior_count(y, offset=offset, prior_count=prior_count)
-        fit = mglm_one_way(out['y'], group=group, dispersion=dispersion,
-                           offset=out['offset'], weights=weights)
-        return fit['coefficients'] / np.log(2) + np.log2(1e6)
+        fit = mglm_one_way(
+            out["y"], group=group, dispersion=dispersion, offset=out["offset"], weights=weights
+        )
+        return fit["coefficients"] / np.log(2) + np.log2(1e6)
     else:
-        fit = mglm_one_way(y, group=group, dispersion=dispersion,
-                           offset=offset, weights=weights)
-        return np.exp(fit['coefficients']) * 1e6
+        fit = mglm_one_way(y, group=group, dispersion=dispersion, offset=offset, weights=weights)
+        return np.exp(fit["coefficients"]) * 1e6
 
 
-def rpkm_by_group(y, group=None, gene_length=None, dispersion=0.05,
-                  offset=None, weights=None, log=False, prior_count=2):
+def rpkm_by_group(
+    y,
+    group=None,
+    gene_length=None,
+    dispersion=0.05,
+    offset=None,
+    weights=None,
+    log=False,
+    prior_count=2,
+):
     """RPKM averaged by group.
 
     Port of edgeR's rpkmByGroup().
     """
-    if isinstance(y, dict) and 'counts' in y:
+    if isinstance(y, dict) and "counts" in y:
         dge = y
         if gene_length is None:
-            for col in ['Length', 'length']:
-                if dge.get('genes') is not None and col in dge['genes'].columns:
-                    gene_length = dge['genes'][col].values
+            for col in ["Length", "length"]:
+                if dge.get("genes") is not None and col in dge["genes"].columns:
+                    gene_length = dge["genes"][col].values
                     break
         elif isinstance(gene_length, str):
-            gene_length = dge['genes'][gene_length].values
+            gene_length = dge["genes"][gene_length].values
         if gene_length is None:
             raise ValueError("Gene lengths not found")
 
     gene_length = np.asarray(gene_length, dtype=np.float64)
-    z = cpm_by_group(y, group=group, dispersion=dispersion, offset=offset,
-                     weights=weights, log=log, prior_count=prior_count)
+    z = cpm_by_group(
+        y,
+        group=group,
+        dispersion=dispersion,
+        offset=offset,
+        weights=weights,
+        log=log,
+        prior_count=prior_count,
+    )
 
     if log:
         return z - np.log2(gene_length[:, np.newaxis] / 1e3)

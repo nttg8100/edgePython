@@ -9,8 +9,17 @@ import numpy as np
 from .compressed_matrix import CompressedMatrix
 
 
-def mglm_levenberg(y, design, dispersion=0, offset=0, weights=None,
-                   coef_start=None, start_method='null', maxit=200, tol=1e-06):
+def mglm_levenberg(
+    y,
+    design,
+    dispersion=0,
+    offset=0,
+    weights=None,
+    coef_start=None,
+    start_method="null",
+    maxit=200,
+    tol=1e-06,
+):
     """Fit genewise negative binomial GLMs using Levenberg damping.
 
     Port of edgeR's mglmLevenberg. Vectorized over all genes simultaneously
@@ -57,11 +66,11 @@ def mglm_levenberg(y, design, dispersion=0, offset=0, weights=None,
         fitted = np.exp(offset_mat)
         dev = nbinom_deviance(y, fitted, dispersion, weights)
         return {
-            'coefficients': np.zeros((ngenes, 0)),
-            'fitted.values': fitted,
-            'deviance': dev,
-            'iter': np.zeros(ngenes, dtype=int),
-            'failed': np.zeros(ngenes, dtype=bool)
+            "coefficients": np.zeros((ngenes, 0)),
+            "fitted.values": fitted,
+            "deviance": dev,
+            "iter": np.zeros(ngenes, dtype=int),
+            "failed": np.zeros(ngenes, dtype=bool),
         }
 
     # Expand offset, dispersion, weights to full (ngenes, nlibs) matrices
@@ -80,7 +89,7 @@ def mglm_levenberg(y, design, dispersion=0, offset=0, weights=None,
         if beta.ndim == 1:
             beta = np.tile(beta, (ngenes, 1))
     else:
-        beta = _get_levenberg_start(y, offset_mat, disp_mat, w_mat, design, start_method == 'null')
+        beta = _get_levenberg_start(y, offset_mat, disp_mat, w_mat, design, start_method == "null")
 
     # Vectorized Levenberg-Marquardt iteration over all genes
     beta = beta.copy()
@@ -99,7 +108,7 @@ def mglm_levenberg(y, design, dispersion=0, offset=0, weights=None,
     for it in range(maxit):
         if not np.any(active):
             break
-        with np.errstate(over='ignore', divide='ignore', invalid='ignore'):
+        with np.errstate(over="ignore", divide="ignore", invalid="ignore"):
             a = active
             n_a = np.count_nonzero(a)
 
@@ -182,11 +191,11 @@ def mglm_levenberg(y, design, dispersion=0, offset=0, weights=None,
     deviance = nbinom_deviance(y, fitted_values, dispersion, weights)
 
     return {
-        'coefficients': beta,
-        'fitted.values': fitted_values,
-        'deviance': deviance,
-        'iter': n_iter,
-        'failed': failed
+        "coefficients": beta,
+        "fitted.values": fitted_values,
+        "deviance": deviance,
+        "iter": n_iter,
+        "failed": failed,
     }
 
 
@@ -269,9 +278,10 @@ def nbinom_deviance(y, mean, dispersion=0, weights=None):
         unit_dev = np.zeros_like(y)
         pos = y > 0
         if np.any(pos):
-            unit_dev[pos] = 2 * (y[pos] * np.log(y[pos] / mean[pos]) -
-                                  (y[pos] + 1.0 / d) * np.log((1 + d * y[pos]) /
-                                                                (1 + d * mean[pos])))
+            unit_dev[pos] = 2 * (
+                y[pos] * np.log(y[pos] / mean[pos])
+                - (y[pos] + 1.0 / d) * np.log((1 + d * y[pos]) / (1 + d * mean[pos]))
+            )
         zero = ~pos
         if np.any(zero):
             unit_dev[zero] = 2.0 / d * np.log(1 + d * mean[zero])
@@ -285,9 +295,10 @@ def nbinom_deviance(y, mean, dispersion=0, weights=None):
         pos = y > 0
         if np.any(pos):
             d_pos = np.broadcast_to(d_mat, y.shape)[pos]
-            unit_dev[pos] = 2 * (y[pos] * np.log(y[pos] / mean[pos]) -
-                                  (y[pos] + 1.0 / d_pos) * np.log((1 + d_pos * y[pos]) /
-                                                                    (1 + d_pos * mean[pos])))
+            unit_dev[pos] = 2 * (
+                y[pos] * np.log(y[pos] / mean[pos])
+                - (y[pos] + 1.0 / d_pos) * np.log((1 + d_pos * y[pos]) / (1 + d_pos * mean[pos]))
+            )
         zero = ~pos
         if np.any(zero):
             d_zero = np.broadcast_to(d_mat, y.shape)[zero]
@@ -334,17 +345,20 @@ def _unit_nb_deviance(y, mu, dispersion):
     if np.isscalar(disp):
         # y > 0 part
         if np.any(pos):
-            dev[pos] = 2 * (y[pos] * np.log(y[pos] / mu[pos]) -
-                            (y[pos] + 1 / disp) * np.log((1 + disp * y[pos]) /
-                                                          (1 + disp * mu[pos])))
+            dev[pos] = 2 * (
+                y[pos] * np.log(y[pos] / mu[pos])
+                - (y[pos] + 1 / disp) * np.log((1 + disp * y[pos]) / (1 + disp * mu[pos]))
+            )
         # y == 0 part
         if np.any(zero):
             dev[zero] = 2 / disp * np.log(1 + disp * mu[zero])
     else:
         if np.any(pos):
-            dev[pos] = 2 * (y[pos] * np.log(y[pos] / mu[pos]) -
-                            (y[pos] + 1 / disp[pos]) * np.log((1 + disp[pos] * y[pos]) /
-                                                               (1 + disp[pos] * mu[pos])))
+            dev[pos] = 2 * (
+                y[pos] * np.log(y[pos] / mu[pos])
+                - (y[pos] + 1 / disp[pos])
+                * np.log((1 + disp[pos] * y[pos]) / (1 + disp[pos] * mu[pos]))
+            )
         if np.any(zero):
             d_z = disp[zero]
             dev[zero] = 2 / d_z * np.log(1 + d_z * mu[zero])

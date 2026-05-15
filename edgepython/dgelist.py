@@ -14,14 +14,21 @@ from .classes import DGEList
 
 def _drop_empty_levels(x):
     """Drop unused levels from a categorical/factor variable."""
-    if hasattr(x, 'cat'):
+    if hasattr(x, "cat"):
         return x.cat.remove_unused_categories()
     return pd.Categorical(x)
 
 
-def make_dgelist(counts, lib_size=None, norm_factors=None, samples=None,
-                 group=None, genes=None, remove_zeros=False,
-                 annotation_columns=None):
+def make_dgelist(
+    counts,
+    lib_size=None,
+    norm_factors=None,
+    samples=None,
+    group=None,
+    genes=None,
+    remove_zeros=False,
+    annotation_columns=None,
+):
     """Construct a DGEList object from components.
 
     Port of edgeR's DGEList().
@@ -71,21 +78,21 @@ def make_dgelist(counts, lib_size=None, norm_factors=None, samples=None,
                 non_numeric = counts.columns[~numeric_mask]
                 last_non_numeric = non_numeric[-1]
                 last_idx = counts.columns.get_loc(last_non_numeric)
-                ann_cols = counts.columns[:last_idx + 1].tolist()
+                ann_cols = counts.columns[: last_idx + 1].tolist()
                 if genes is None:
                     genes = counts[ann_cols].copy()
                 else:
                     genes = pd.concat([counts[ann_cols], genes], axis=1)
-                counts = counts.iloc[:, last_idx + 1:]
+                counts = counts.iloc[:, last_idx + 1 :]
 
     # Handle scipy sparse matrices
-    if hasattr(counts, 'toarray') and hasattr(counts, 'nnz'):
+    if hasattr(counts, "toarray") and hasattr(counts, "nnz"):
         shape = counts.shape
         nnz = counts.nnz
         density = nnz / (shape[0] * shape[1]) if shape[0] * shape[1] > 0 else 0
         warnings.warn(
             f"Densifying sparse matrix ({shape[0]} x {shape[1]}, "
-            f"{100*density:.1f}% non-zero, "
+            f"{100 * density:.1f}% non-zero, "
             f"{shape[0] * shape[1] * 8 / 1e6:.0f} MB dense). "
             f"edgePython stores counts as dense arrays.",
             stacklevel=2,
@@ -111,8 +118,8 @@ def make_dgelist(counts, lib_size=None, norm_factors=None, samples=None,
     ntags = counts.shape[0]
 
     # Column names
-    col_names = [f"Sample{i+1}" for i in range(nlib)]
-    row_names = [str(i+1) for i in range(ntags)]
+    col_names = [f"Sample{i + 1}" for i in range(nlib)]
+    row_names = [str(i + 1) for i in range(ntags)]
 
     # Library sizes
     if lib_size is None:
@@ -153,9 +160,9 @@ def make_dgelist(counts, lib_size=None, norm_factors=None, samples=None,
             raise ValueError("Number of rows in 'samples' must equal number of columns in 'counts'")
 
     # Group
-    if group is None and samples is not None and 'group' in samples.columns:
-        group = samples['group'].values
-        samples = samples.drop(columns=['group'])
+    if group is None and samples is not None and "group" in samples.columns:
+        group = samples["group"].values
+        samples = samples.drop(columns=["group"])
 
     if group is None:
         group = pd.Categorical([1] * nlib)
@@ -165,11 +172,7 @@ def make_dgelist(counts, lib_size=None, norm_factors=None, samples=None,
         group = _drop_empty_levels(pd.Categorical(group))
 
     # Build samples DataFrame
-    sam = pd.DataFrame({
-        'group': group,
-        'lib.size': lib_size,
-        'norm.factors': norm_factors
-    })
+    sam = pd.DataFrame({"group": group, "lib.size": lib_size, "norm.factors": norm_factors})
     if samples is not None:
         for col in samples.columns:
             sam[col] = samples[col].values
@@ -177,8 +180,8 @@ def make_dgelist(counts, lib_size=None, norm_factors=None, samples=None,
 
     # Build DGEList
     x = DGEList()
-    x['counts'] = counts
-    x['samples'] = sam
+    x["counts"] = counts
+    x["samples"] = sam
 
     # Gene annotation
     if genes is not None:
@@ -186,16 +189,16 @@ def make_dgelist(counts, lib_size=None, norm_factors=None, samples=None,
         if len(genes) != ntags:
             raise ValueError("Counts and genes have different numbers of rows")
         genes.index = row_names
-        x['genes'] = genes
+        x["genes"] = genes
 
     # Remove all-zero rows
     if remove_zeros:
         all_zeros = np.sum(counts > 0, axis=1) == 0
         if np.any(all_zeros):
             keep = ~all_zeros
-            x['counts'] = counts[keep]
-            if 'genes' in x and x['genes'] is not None:
-                x['genes'] = x['genes'].iloc[keep]
+            x["counts"] = counts[keep]
+            if "genes" in x and x["genes"] is not None:
+                x["genes"] = x["genes"].iloc[keep]
             print(f"Removing {np.sum(all_zeros)} rows with all zero counts")
 
     return x
@@ -206,18 +209,18 @@ def valid_dgelist(y):
 
     Port of edgeR's validDGEList.
     """
-    if 'counts' not in y or y['counts'] is None:
+    if "counts" not in y or y["counts"] is None:
         raise ValueError("No count matrix")
-    y['counts'] = np.asarray(y['counts'], dtype=np.float64)
-    nlib = y['counts'].shape[1]
-    if 'samples' not in y:
-        y['samples'] = pd.DataFrame()
-    if 'group' not in y['samples'].columns:
-        y['samples']['group'] = pd.Categorical([1] * nlib)
-    if 'lib.size' not in y['samples'].columns:
-        y['samples']['lib.size'] = y['counts'].sum(axis=0)
-    if 'norm.factors' not in y['samples'].columns:
-        y['samples']['norm.factors'] = np.ones(nlib)
+    y["counts"] = np.asarray(y["counts"], dtype=np.float64)
+    nlib = y["counts"].shape[1]
+    if "samples" not in y:
+        y["samples"] = pd.DataFrame()
+    if "group" not in y["samples"].columns:
+        y["samples"]["group"] = pd.Categorical([1] * nlib)
+    if "lib.size" not in y["samples"].columns:
+        y["samples"]["lib.size"] = y["counts"].sum(axis=0)
+    if "norm.factors" not in y["samples"].columns:
+        y["samples"]["norm.factors"] = np.ones(nlib)
     return y
 
 
@@ -226,7 +229,7 @@ def get_counts(y):
 
     Port of edgeR's getCounts.
     """
-    return np.asarray(y['counts'])
+    return np.asarray(y["counts"])
 
 
 def get_dispersion(y):
@@ -235,15 +238,15 @@ def get_dispersion(y):
     Port of edgeR's getDispersion.
     Returns tagwise > trended > common > None, with a 'type' attribute.
     """
-    if y.get('tagwise.dispersion') is not None:
-        disp = np.asarray(y['tagwise.dispersion'])
-        disp_type = 'tagwise'
-    elif y.get('trended.dispersion') is not None:
-        disp = np.asarray(y['trended.dispersion'])
-        disp_type = 'trended'
-    elif y.get('common.dispersion') is not None:
-        disp = np.float64(y['common.dispersion'])
-        disp_type = 'common'
+    if y.get("tagwise.dispersion") is not None:
+        disp = np.asarray(y["tagwise.dispersion"])
+        disp_type = "tagwise"
+    elif y.get("trended.dispersion") is not None:
+        disp = np.asarray(y["trended.dispersion"])
+        disp_type = "trended"
+    elif y.get("common.dispersion") is not None:
+        disp = np.float64(y["common.dispersion"])
+        disp_type = "common"
     else:
         return None
 
@@ -255,12 +258,12 @@ def get_dispersion(y):
 
 def get_dispersion_type(y):
     """Get the type of the most complex dispersion in a DGEList."""
-    if y.get('tagwise.dispersion') is not None:
-        return 'tagwise'
-    elif y.get('trended.dispersion') is not None:
-        return 'trended'
-    elif y.get('common.dispersion') is not None:
-        return 'common'
+    if y.get("tagwise.dispersion") is not None:
+        return "tagwise"
+    elif y.get("trended.dispersion") is not None:
+        return "trended"
+    elif y.get("common.dispersion") is not None:
+        return "common"
     return None
 
 
@@ -269,14 +272,14 @@ def get_offset(y):
 
     Port of edgeR's getOffset. Returns log(lib.size * norm.factors) by default.
     """
-    if y.get('offset') is not None:
-        return y['offset']
+    if y.get("offset") is not None:
+        return y["offset"]
 
-    lib_size = y['samples']['lib.size'].values
+    lib_size = y["samples"]["lib.size"].values
     if lib_size is None:
         raise ValueError("y is not a valid DGEList object")
 
-    norm_factors = y['samples'].get('norm.factors')
+    norm_factors = y["samples"].get("norm.factors")
     if norm_factors is not None:
         lib_size = lib_size * norm_factors.values
 
@@ -292,10 +295,10 @@ def get_norm_lib_sizes(y, log=False):
     Port of edgeR's getNormLibSizes / effectiveLibSizes.
     """
     if isinstance(y, dict):
-        if y.get('offset') is not None:
+        if y.get("offset") is not None:
             # For DGEGLM/DGELRT objects, offset is a matrix
-            offset = y['offset']
-            if hasattr(offset, 'as_matrix'):
+            offset = y["offset"]
+            if hasattr(offset, "as_matrix"):
                 offset = offset.as_matrix()
             if isinstance(offset, np.ndarray) and offset.ndim == 2:
                 els = offset[0, :]
@@ -304,8 +307,8 @@ def get_norm_lib_sizes(y, log=False):
             if not log:
                 els = np.exp(els)
             return els
-        elif 'samples' in y:
-            els = y['samples']['lib.size'].values * y['samples']['norm.factors'].values
+        elif "samples" in y:
+            els = y["samples"]["lib.size"].values * y["samples"]["norm.factors"].values
             if log:
                 els = np.log(els)
             return els

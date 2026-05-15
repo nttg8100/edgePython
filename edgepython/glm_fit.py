@@ -9,13 +9,11 @@ import numpy as np
 import warnings
 from .compressed_matrix import CompressedMatrix
 from .glm_levenberg import mglm_levenberg, nbinom_deviance
-from .utils import (expand_as_matrix, design_as_factor, pred_fc,
-                    add_prior_count, residual_df)
+from .utils import expand_as_matrix, design_as_factor, pred_fc, add_prior_count, residual_df
 from .limma_port import squeeze_var, non_estimable, choose_lowess_span
 
 
-def mglm_one_group(y, dispersion=0, offset=0, weights=None,
-                   coef_start=None, maxit=50, tol=1e-10):
+def mglm_one_group(y, dispersion=0, offset=0, weights=None, coef_start=None, maxit=50, tol=1e-10):
     """Fit single-group negative-binomial GLM.
 
     Port of edgeR's mglmOneGroup (C code reimplemented in Python).
@@ -56,8 +54,9 @@ def mglm_one_group(y, dispersion=0, offset=0, weights=None,
 
     # Ensure 2D for all
     if disp_mat.ndim == 1:
-        disp_mat = np.broadcast_to(disp_mat[:, None] if len(disp_mat) == ngenes
-                                    else disp_mat[None, :], y.shape).copy()
+        disp_mat = np.broadcast_to(
+            disp_mat[:, None] if len(disp_mat) == ngenes else disp_mat[None, :], y.shape
+        ).copy()
     elif disp_mat.ndim == 0:
         disp_mat = np.full_like(y, float(disp_mat))
 
@@ -118,8 +117,17 @@ def mglm_one_group(y, dispersion=0, offset=0, weights=None,
     return b
 
 
-def mglm_one_way(y, design=None, group=None, dispersion=0, offset=0,
-                 weights=None, coef_start=None, maxit=50, tol=1e-10):
+def mglm_one_way(
+    y,
+    design=None,
+    group=None,
+    dispersion=0,
+    offset=0,
+    weights=None,
+    coef_start=None,
+    maxit=50,
+    tol=1e-10,
+):
     """Fit multiple NB GLMs with a one-way layout.
 
     Port of edgeR's mglmOneWay.
@@ -188,8 +196,10 @@ def mglm_one_way(y, design=None, group=None, dispersion=0, offset=0,
         first_of_group = np.array([np.where(group == g)[0][0] for g in unique_groups])
         design_unique = design[first_of_group]
         # Check if it's a simple group indicator
-        is_indicator = (np.sum(design_unique == 1) == ngroups and
-                        np.sum(design_unique == 0) == (ngroups - 1) * ngroups)
+        is_indicator = (
+            np.sum(design_unique == 1) == ngroups
+            and np.sum(design_unique == 0) == (ngroups - 1) * ngroups
+        )
         if is_indicator:
             design_unique = None
 
@@ -210,10 +220,14 @@ def mglm_one_way(y, design=None, group=None, dispersion=0, offset=0,
         j = np.where(group == grp)[0]
         cs_g = cs[:, g_idx] if cs is not None else None
         beta[:, g_idx] = mglm_one_group(
-            y[:, j], dispersion=disp_mat[:, j] if disp_mat.ndim == 2 else disp_mat,
+            y[:, j],
+            dispersion=disp_mat[:, j] if disp_mat.ndim == 2 else disp_mat,
             offset=offset_mat[:, j] if offset_mat.ndim == 2 else offset_mat,
             weights=w_mat[:, j] if w_mat.ndim == 2 else w_mat,
-            coef_start=cs_g, maxit=maxit, tol=tol)
+            coef_start=cs_g,
+            maxit=maxit,
+            tol=tol,
+        )
 
     # Clamp -Inf to large negative
     beta = np.maximum(beta, -1e8)
@@ -229,14 +243,19 @@ def mglm_one_way(y, design=None, group=None, dispersion=0, offset=0,
     if design_unique is not None:
         beta = np.linalg.solve(design_unique, beta.T).T
 
-    return {
-        'coefficients': beta,
-        'fitted.values': mu
-    }
+    return {"coefficients": beta, "fitted.values": mu}
 
 
-def glm_fit(y, design=None, dispersion=None, offset=None, lib_size=None,
-            weights=None, prior_count=0.125, start=None):
+def glm_fit(
+    y,
+    design=None,
+    dispersion=None,
+    offset=None,
+    lib_size=None,
+    weights=None,
+    prior_count=0.125,
+    start=None,
+):
     """Fit negative binomial GLMs for each gene.
 
     Port of edgeR's glmFit.default.
@@ -269,40 +288,53 @@ def glm_fit(y, design=None, dispersion=None, offset=None, lib_size=None,
     """
     # Resolve formula string to design matrix
     from .utils import _resolve_design
+
     design = _resolve_design(design, y)
 
     # DGEList input
-    if isinstance(y, dict) and 'counts' in y:
+    if isinstance(y, dict) and "counts" in y:
         dge = y
         if design is None:
-            design = dge.get('design')
+            design = dge.get("design")
             if design is None:
-                group = dge['samples']['group'].values
+                group = dge["samples"]["group"].values
                 from .utils import drop_empty_levels
+
                 group = drop_empty_levels(group)
                 unique_groups = np.unique(group)
                 if len(unique_groups) > 1:
                     # model.matrix(~group)
                     from .utils import _model_matrix_group
+
                     design = _model_matrix_group(group)
         if dispersion is None:
             from .dgelist import get_dispersion
+
             dispersion = get_dispersion(dge)
             if dispersion is None:
                 raise ValueError("No dispersion values found in DGEList object.")
         from .dgelist import get_offset
+
         offset = get_offset(dge)
         from .expression import ave_log_cpm
-        if dge.get('AveLogCPM') is None:
-            dge['AveLogCPM'] = ave_log_cpm(dge)
 
-        fit = glm_fit(dge['counts'], design=design, dispersion=dispersion,
-                      offset=offset, lib_size=None, weights=dge.get('weights'),
-                      prior_count=prior_count, start=start)
-        fit['samples'] = dge['samples']
-        fit['genes'] = dge.get('genes')
-        fit['prior.df'] = dge.get('prior.df')
-        fit['AveLogCPM'] = dge.get('AveLogCPM')
+        if dge.get("AveLogCPM") is None:
+            dge["AveLogCPM"] = ave_log_cpm(dge)
+
+        fit = glm_fit(
+            dge["counts"],
+            design=design,
+            dispersion=dispersion,
+            offset=offset,
+            lib_size=None,
+            weights=dge.get("weights"),
+            prior_count=prior_count,
+            start=start,
+        )
+        fit["samples"] = dge["samples"]
+        fit["genes"] = dge.get("genes")
+        fit["prior.df"] = dge.get("prior.df")
+        fit["AveLogCPM"] = dge.get("AveLogCPM")
         return fit
 
     # Default method
@@ -362,40 +394,68 @@ def glm_fit(y, design=None, dispersion=None, offset=None, lib_size=None,
     unique_groups = np.unique(group)
 
     if len(unique_groups) == design.shape[1]:
-        fit = mglm_one_way(y, design=design, group=group,
-                           dispersion=disp_mat, offset=offset_mat,
-                           weights=w_mat, coef_start=start)
-        fit['deviance'] = nbinom_deviance(y, fit['fitted.values'], dispersion, w_mat)
-        fit['method'] = 'oneway'
+        fit = mglm_one_way(
+            y,
+            design=design,
+            group=group,
+            dispersion=disp_mat,
+            offset=offset_mat,
+            weights=w_mat,
+            coef_start=start,
+        )
+        fit["deviance"] = nbinom_deviance(y, fit["fitted.values"], dispersion, w_mat)
+        fit["method"] = "oneway"
     else:
-        fit = mglm_levenberg(y, design=design, dispersion=disp_mat,
-                             offset=offset_mat, weights=w_mat,
-                             coef_start=start, maxit=250)
-        fit['method'] = 'levenberg'
+        fit = mglm_levenberg(
+            y,
+            design=design,
+            dispersion=disp_mat,
+            offset=offset_mat,
+            weights=w_mat,
+            coef_start=start,
+            maxit=250,
+        )
+        fit["method"] = "levenberg"
 
     # Prepare output
-    fit['counts'] = y
+    fit["counts"] = y
     if prior_count > 0:
-        fit['unshrunk.coefficients'] = fit['coefficients'].copy()
-        fit['coefficients'] = pred_fc(y, design, offset=offset_mat,
-                                      dispersion=disp_mat,
-                                      prior_count=prior_count,
-                                      weights=w_mat) * np.log(2)
+        fit["unshrunk.coefficients"] = fit["coefficients"].copy()
+        fit["coefficients"] = pred_fc(
+            y,
+            design,
+            offset=offset_mat,
+            dispersion=disp_mat,
+            prior_count=prior_count,
+            weights=w_mat,
+        ) * np.log(2)
 
-    fit['df.residual'] = np.full(ntag, nlib - design.shape[1])
-    fit['design'] = design
-    fit['offset'] = offset_mat
-    fit['dispersion'] = dispersion
-    fit['weights'] = weights
-    fit['prior.count'] = prior_count
+    fit["df.residual"] = np.full(ntag, nlib - design.shape[1])
+    fit["design"] = design
+    fit["offset"] = offset_mat
+    fit["dispersion"] = dispersion
+    fit["weights"] = weights
+    fit["prior.count"] = prior_count
 
     return fit
 
 
-def glm_ql_fit(y, design=None, dispersion=None, offset=None, lib_size=None,
-               weights=None, abundance_trend=True, ave_log_cpm=None,
-               covariate_trend=None, robust=False, winsor_tail_p=(0.05, 0.1),
-               legacy=False, top_proportion=None, keep_unit_mat=False):
+def glm_ql_fit(
+    y,
+    design=None,
+    dispersion=None,
+    offset=None,
+    lib_size=None,
+    weights=None,
+    abundance_trend=True,
+    ave_log_cpm=None,
+    covariate_trend=None,
+    robust=False,
+    winsor_tail_p=(0.05, 0.1),
+    legacy=False,
+    top_proportion=None,
+    keep_unit_mat=False,
+):
     """Fit quasi-likelihood negative binomial GLMs.
 
     Port of edgeR's glmQLFit.default.
@@ -439,52 +499,63 @@ def glm_ql_fit(y, design=None, dispersion=None, offset=None, lib_size=None,
     """
     from .expression import ave_log_cpm as _ave_log_cpm
     from .utils import _resolve_design
+
     design = _resolve_design(design, y)
 
     # DGEList input
-    if isinstance(y, dict) and 'counts' in y:
+    if isinstance(y, dict) and "counts" in y:
         dge = y
         if design is None:
-            design = dge.get('design')
+            design = dge.get("design")
             if design is None:
-                group = dge['samples']['group'].values
+                group = dge["samples"]["group"].values
                 from .utils import drop_empty_levels
+
                 group = drop_empty_levels(group)
                 unique_g = np.unique(group)
                 if len(unique_g) > 1:
                     from .utils import _model_matrix_group
+
                     design = _model_matrix_group(group)
 
-        if dge.get('AveLogCPM') is None:
-            dge['AveLogCPM'] = _ave_log_cpm(dge)
+        if dge.get("AveLogCPM") is None:
+            dge["AveLogCPM"] = _ave_log_cpm(dge)
 
         if dispersion is None:
             if legacy:
-                dispersion = dge.get('trended.dispersion')
+                dispersion = dge.get("trended.dispersion")
                 if dispersion is None:
-                    dispersion = dge.get('common.dispersion')
+                    dispersion = dge.get("common.dispersion")
                 if dispersion is None:
                     raise ValueError("No dispersion values found in DGEList object.")
             else:
-                if dge.get('trended.dispersion') is not None:
-                    ntop = int(np.ceil(0.1 * dge['counts'].shape[0]))
-                    i = np.argsort(dge['AveLogCPM'])[::-1][:ntop]
-                    dispersion = np.mean(dge['trended.dispersion'][i])
+                if dge.get("trended.dispersion") is not None:
+                    ntop = int(np.ceil(0.1 * dge["counts"].shape[0]))
+                    i = np.argsort(dge["AveLogCPM"])[::-1][:ntop]
+                    dispersion = np.mean(dge["trended.dispersion"][i])
 
         from .dgelist import get_offset
+
         offset = get_offset(dge)
 
-        fit = glm_ql_fit(dge['counts'], design=design, dispersion=dispersion,
-                         offset=offset, lib_size=None,
-                         abundance_trend=abundance_trend,
-                         ave_log_cpm=dge['AveLogCPM'],
-                         robust=robust, winsor_tail_p=winsor_tail_p,
-                         weights=dge.get('weights'),
-                         legacy=legacy, top_proportion=top_proportion,
-                         keep_unit_mat=keep_unit_mat)
-        fit['samples'] = dge['samples']
-        fit['genes'] = dge.get('genes')
-        fit['AveLogCPM'] = dge['AveLogCPM']
+        fit = glm_ql_fit(
+            dge["counts"],
+            design=design,
+            dispersion=dispersion,
+            offset=offset,
+            lib_size=None,
+            abundance_trend=abundance_trend,
+            ave_log_cpm=dge["AveLogCPM"],
+            robust=robust,
+            winsor_tail_p=winsor_tail_p,
+            weights=dge.get("weights"),
+            legacy=legacy,
+            top_proportion=top_proportion,
+            keep_unit_mat=keep_unit_mat,
+        )
+        fit["samples"] = dge["samples"]
+        fit["genes"] = dge.get("genes")
+        fit["AveLogCPM"] = dge["AveLogCPM"]
         return fit
 
     # Default method
@@ -504,8 +575,9 @@ def glm_ql_fit(y, design=None, dispersion=None, offset=None, lib_size=None,
 
     # Check AveLogCPM
     if ave_log_cpm is None:
-        ave_log_cpm = _ave_log_cpm(y_mat, offset=offset, lib_size=lib_size,
-                                    weights=weights, dispersion=dispersion)
+        ave_log_cpm = _ave_log_cpm(
+            y_mat, offset=offset, lib_size=lib_size, weights=weights, dispersion=dispersion
+        )
 
     # Check dispersion
     if dispersion is None:
@@ -515,13 +587,15 @@ def glm_ql_fit(y, design=None, dispersion=None, offset=None, lib_size=None,
             if top_proportion is None:
                 df_residual = nlibs - design.shape[1]
                 top_proportion = choose_lowess_span(
-                    ngenes * np.sqrt(df_residual), small_n=20, min_span=0.02)
+                    ngenes * np.sqrt(df_residual), small_n=20, min_span=0.02
+                )
             else:
                 if top_proportion < 0 or top_proportion > 1:
                     raise ValueError("top_proportion should be between 0 and 1.")
             ntop = int(np.ceil(top_proportion * ngenes))
             i = np.argsort(ave_log_cpm)[::-1][:ntop]
             from .dispersion import estimate_glm_common_disp
+
             if offset is not None:
                 off_sub = np.asarray(offset)
                 if off_sub.ndim == 2:
@@ -534,7 +608,8 @@ def glm_ql_fit(y, design=None, dispersion=None, offset=None, lib_size=None,
                 if w_arr.ndim == 2:
                     w_sub = w_arr[i]
             dispersion = estimate_glm_common_disp(
-                y_mat[i], design=design, offset=off_sub, weights=w_sub)
+                y_mat[i], design=design, offset=off_sub, weights=w_sub
+            )
     else:
         # Cap dispersion at 4 for non-legacy
         if not legacy:
@@ -543,8 +618,15 @@ def glm_ql_fit(y, design=None, dispersion=None, offset=None, lib_size=None,
                 dispersion = np.minimum(dispersion, 4.0)
 
     # Fit GLM (prior_count=0.125 matches R's glmFit.default default for logFC shrinkage)
-    fit = glm_fit(y_mat, design=design, dispersion=dispersion, offset=offset,
-                  lib_size=lib_size, weights=weights, prior_count=0.125)
+    fit = glm_fit(
+        y_mat,
+        design=design,
+        dispersion=dispersion,
+        offset=offset,
+        lib_size=lib_size,
+        weights=weights,
+        prior_count=0.125,
+    )
 
     # Store AveLogCPM for computation
     ave_log_cpm2 = ave_log_cpm.copy()
@@ -552,7 +634,7 @@ def glm_ql_fit(y, design=None, dispersion=None, offset=None, lib_size=None,
     # Covariate for trended prior
     if covariate_trend is None:
         if abundance_trend:
-            fit['AveLogCPM'] = ave_log_cpm
+            fit["AveLogCPM"] = ave_log_cpm
         else:
             ave_log_cpm = None
     else:
@@ -561,10 +643,10 @@ def glm_ql_fit(y, design=None, dispersion=None, offset=None, lib_size=None,
     # Setting residual deviances and df
     if legacy:
         # Old-style: adjust df for fitted values at zero
-        zerofit = (fit['fitted.values'] < 1e-4) & (fit['counts'] < 1e-4)
-        df_residual = residual_df(zerofit, fit['design'])
-        fit['df.residual.zeros'] = df_residual
-        s2 = fit['deviance'] / np.maximum(df_residual, 1e-8)
+        zerofit = (fit["fitted.values"] < 1e-4) & (fit["counts"] < 1e-4)
+        df_residual = residual_df(zerofit, fit["design"])
+        fit["df.residual.zeros"] = df_residual
+        s2 = fit["deviance"] / np.maximum(df_residual, 1e-8)
         s2[df_residual == 0] = 0
     else:
         # New-style: adjusted deviance and df using QL weights (matching R's C code)
@@ -574,34 +656,43 @@ def glm_ql_fit(y, design=None, dispersion=None, offset=None, lib_size=None,
         disp_arr = np.atleast_1d(np.asarray(dispersion, dtype=np.float64))
 
         # Compute average quasi-dispersion via iterative lowess + adjusted deviance
-        ave_ql_disp = update_prior(y_mat, fit['fitted.values'], design,
-                                   disp_arr, weights, ave_log_cpm2)
+        ave_ql_disp = update_prior(
+            y_mat, fit["fitted.values"], design, disp_arr, weights, ave_log_cpm2
+        )
 
         # Refit with dispersion scaled by average quasi-dispersion
-        fit = glm_fit(y_mat, design=design, dispersion=dispersion / ave_ql_disp,
-                      offset=offset, lib_size=lib_size, weights=weights,
-                      prior_count=0.125)
-        fit['dispersion'] = dispersion
+        fit = glm_fit(
+            y_mat,
+            design=design,
+            dispersion=dispersion / ave_ql_disp,
+            offset=offset,
+            lib_size=lib_size,
+            weights=weights,
+            prior_count=0.125,
+        )
+        fit["dispersion"] = dispersion
 
         # Compute adjusted deviance, df, and s2 using QL weights
-        out = compute_adjust_vec(y_mat, fit['fitted.values'], design,
-                                 disp_arr, ave_ql_disp, weights)
-        s2 = out['s2']
-        df_residual = out['df']
-        fit['df.residual.adj'] = df_residual
-        fit['deviance.adj'] = out['deviance']
-        fit['average.ql.dispersion'] = ave_ql_disp
+        out = compute_adjust_vec(
+            y_mat, fit["fitted.values"], design, disp_arr, ave_ql_disp, weights
+        )
+        s2 = out["s2"]
+        df_residual = out["df"]
+        fit["df.residual.adj"] = df_residual
+        fit["deviance.adj"] = out["deviance"]
+        fit["average.ql.dispersion"] = ave_ql_disp
 
     # Empirical Bayes moderation
     s2 = np.maximum(s2, 0)
-    s2_fit = squeeze_var(s2, df=df_residual, covariate=ave_log_cpm,
-                         robust=robust, winsor_tail_p=winsor_tail_p)
+    s2_fit = squeeze_var(
+        s2, df=df_residual, covariate=ave_log_cpm, robust=robust, winsor_tail_p=winsor_tail_p
+    )
 
-    fit['df.prior'] = s2_fit['df_prior']
-    fit['s2.post'] = s2_fit['var_post']
-    fit['s2.prior'] = s2_fit['var_prior']
+    fit["df.prior"] = s2_fit["df_prior"]
+    fit["s2.post"] = s2_fit["var_post"]
+    fit["s2.prior"] = s2_fit["var_prior"]
     if not legacy:
-        fit['top.proportion'] = top_proportion
+        fit["top.proportion"] = top_proportion
 
     return fit
 
@@ -633,13 +724,13 @@ def _compute_ave_ql_disp(s2, df, ave_log_cpm):
         fitted = sm_lowess(y_vals, x, frac=0.5, it=3, return_sorted=False)
 
         # 90th percentile of fitted values (R type=7 quantile)
-        p90 = np.percentile(fitted, 90, interpolation='linear')
+        p90 = np.percentile(fitted, 90, interpolation="linear")
 
         # Cap at minimum of 1.0 (on the ^(1/4) scale)
         if p90 < 1.0:
             p90 = 1.0
 
-        prior = p90 ** 4
+        prior = p90**4
 
     return max(prior, 1.0)
 

@@ -14,6 +14,7 @@ CSV_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 # ── Fixtures ──────────────────────────────────────────────────────────
 
+
 @pytest.fixture(scope="module")
 def d1_expr():
     """Part 1 data with calcNormFactors (no explicit lib_size)."""
@@ -25,6 +26,7 @@ def d1_expr():
 
 
 # ── FilterByExpr ─────────────────────────────────────────────────────
+
 
 class TestFilterByExpr:
     """filterByExpr on 22-gene data."""
@@ -40,6 +42,7 @@ class TestFilterByExpr:
 
 # ── Normalization Methods ────────────────────────────────────────────
 
+
 class TestNormalization:
     """Normalization methods: TMM, RLE, upperquartile, none."""
 
@@ -50,29 +53,26 @@ class TestNormalization:
         return ep.make_dgelist(counts=y, group=group)
 
     def test_upperquartile(self, d_fresh):
-        d = ep.calc_norm_factors(d_fresh, method='upperquartile')
-        nf = d['samples']['norm.factors'].values
+        d = ep.calc_norm_factors(d_fresh, method="upperquartile")
+        nf = d["samples"]["norm.factors"].values
         # R: [0.917796, 1.201101, 0.913137, 0.993434]
-        assert np.allclose(nf, [0.917796, 1.201101, 0.913137, 0.993434],
-                           atol=1e-4)
+        assert np.allclose(nf, [0.917796, 1.201101, 0.913137, 0.993434], atol=1e-4)
 
     def test_rle(self, d_fresh):
-        d = ep.calc_norm_factors(d_fresh, method='RLE')
-        nf = d['samples']['norm.factors'].values
+        d = ep.calc_norm_factors(d_fresh, method="RLE")
+        nf = d["samples"]["norm.factors"].values
         # R: [1.085513, 0.956217, 0.917485, 1.050049]
-        assert np.allclose(nf, [1.085513, 0.956217, 0.917485, 1.050049],
-                           atol=1e-4)
+        assert np.allclose(nf, [1.085513, 0.956217, 0.917485, 1.050049], atol=1e-4)
 
     def test_none(self, d_fresh):
         d = ep.calc_norm_factors(
-            ep.make_dgelist(counts=d_fresh['counts'],
-                            group=np.array([1, 1, 2, 2])),
-            method='none')
-        nf = d['samples']['norm.factors'].values
+            ep.make_dgelist(counts=d_fresh["counts"], group=np.array([1, 1, 2, 2])), method="none"
+        )
+        nf = d["samples"]["norm.factors"].values
         assert np.allclose(nf, [1, 1, 1, 1])
 
     def test_cpm_with_rle(self, d_fresh):
-        d = ep.calc_norm_factors(d_fresh, method='RLE')
+        d = ep.calc_norm_factors(d_fresh, method="RLE")
         cpm_rle = ep.cpm(d)
         # R row 3: [37600.96, 100442.9, 49794.01, 26701.04]
         expected = [37600.96, 100442.9, 49794.01, 26701.04]
@@ -81,37 +81,41 @@ class TestNormalization:
 
 # ── cbind / rbind ────────────────────────────────────────────────────
 
+
 class TestCbindRbind:
     """cbind/rbind DGEList."""
 
     def test_cbind(self, d1_expr):
         d, y, group = d1_expr
-        d1a = ep.make_dgelist(counts=d['counts'][:, :2],
-                              group=np.array([1, 1]),
-                              lib_size=d['samples']['lib.size'].values[:2])
-        d1a['samples']['norm.factors'] = d['samples']['norm.factors'].values[:2]
-        d1b = ep.make_dgelist(counts=d['counts'][:, 2:],
-                              group=np.array([2, 2]),
-                              lib_size=d['samples']['lib.size'].values[2:])
-        d1b['samples']['norm.factors'] = d['samples']['norm.factors'].values[2:]
+        d1a = ep.make_dgelist(
+            counts=d["counts"][:, :2],
+            group=np.array([1, 1]),
+            lib_size=d["samples"]["lib.size"].values[:2],
+        )
+        d1a["samples"]["norm.factors"] = d["samples"]["norm.factors"].values[:2]
+        d1b = ep.make_dgelist(
+            counts=d["counts"][:, 2:],
+            group=np.array([2, 2]),
+            lib_size=d["samples"]["lib.size"].values[2:],
+        )
+        d1b["samples"]["norm.factors"] = d["samples"]["norm.factors"].values[2:]
         d_cb = ep.cbind_dgelist(d1a, d1b)
         # R: counts dim=22x4
-        assert d_cb['counts'].shape == (22, 4)
-        assert np.allclose(d_cb['counts'], d['counts'])
+        assert d_cb["counts"].shape == (22, 4)
+        assert np.allclose(d_cb["counts"], d["counts"])
 
     def test_rbind(self, d1_expr):
         d, y, group = d1_expr
         lib_size = np.array([1001, 1002, 1003, 1004])
-        d1c = ep.make_dgelist(counts=d['counts'][:10, :],
-                              group=group, lib_size=lib_size)
-        d1d = ep.make_dgelist(counts=d['counts'][10:, :],
-                              group=group, lib_size=lib_size)
+        d1c = ep.make_dgelist(counts=d["counts"][:10, :], group=group, lib_size=lib_size)
+        d1d = ep.make_dgelist(counts=d["counts"][10:, :], group=group, lib_size=lib_size)
         d_rb = ep.rbind_dgelist(d1c, d1d)
-        assert d_rb['counts'].shape == (22, 4)
-        assert np.allclose(d_rb['counts'], d['counts'])
+        assert d_rb["counts"].shape == (22, 4)
+        assert np.allclose(d_rb["counts"], d["counts"])
 
 
 # ── Accessors and Validation ─────────────────────────────────────────
+
 
 class TestAccessors:
     """DGEList accessors and validation."""
@@ -137,8 +141,8 @@ class TestAccessors:
         assert offset is not None
 
     def test_valid_dgelist(self):
-        minimal = {'counts': np.array([[5, 10], [15, 20]], dtype=float)}
+        minimal = {"counts": np.array([[5, 10], [15, 20]], dtype=float)}
         filled = ep.valid_dgelist(minimal)
-        assert 'samples' in filled
-        assert np.allclose(filled['samples']['lib.size'].values, [20, 30])
-        assert np.allclose(filled['samples']['norm.factors'].values, [1, 1])
+        assert "samples" in filled
+        assert np.allclose(filled["samples"]["lib.size"].values, [20, 30])
+        assert np.allclose(filled["samples"]["norm.factors"].values, [1, 1])

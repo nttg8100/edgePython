@@ -143,7 +143,9 @@ def test_duplicate_correlation_detects_positive_block_signal():
 
 def test_voom_lmfit_extended_normalization_modes():
     rng = np.random.default_rng(88)
-    counts = rng.poisson(lam=np.array([5, 20, 80, 200])[None, :] * rng.uniform(0.6, 1.6, size=(100, 4))).astype(float)
+    counts = rng.poisson(
+        lam=np.array([5, 20, 80, 200])[None, :] * rng.uniform(0.6, 1.6, size=(100, 4))
+    ).astype(float)
     design = np.ones((4, 1))
 
     out_q = voom_lmfit(counts, design=design, normalize_method="quantile", keep_elist=False)

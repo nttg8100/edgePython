@@ -133,9 +133,7 @@ def _normalize_between_arrays(y, method="none", cyclic_span=0.7, cyclic_iter=3):
                     out[:, j] += 0.5 * adj
         return out
 
-    raise ValueError(
-        "normalize_method must be one of: none, scale, quantile, cyclicloess"
-    )
+    raise ValueError("normalize_method must be one of: none, scale, quantile, cyclicloess")
 
 
 def _lib_sizes(counts, lib_size=None):
@@ -1070,7 +1068,9 @@ def voom(
 
     prior_w = _as_matrix_weights(prior_weights, counts.shape) if prior_weights is not None else None
 
-    sample_weights_flag = bool(sample_weights) or (var_design is not None) or (var_group is not None)
+    sample_weights_flag = (
+        bool(sample_weights) or (var_design is not None) or (var_group is not None)
+    )
     if (prior_w is not None) and sample_weights_flag:
         raise ValueError("Can't specify prior_weights and estimate sample weights")
 

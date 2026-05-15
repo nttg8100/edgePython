@@ -25,14 +25,15 @@ def _compare_df(r, p, tol=1e-6):
         if col not in p.columns:
             raise AssertionError(f"Column '{col}' missing from Python output")
         try:
-            r_num = pd.to_numeric(r[col], errors='raise')
-            p_num = pd.to_numeric(p[col], errors='raise')
+            r_num = pd.to_numeric(r[col], errors="raise")
+            p_num = pd.to_numeric(p[col], errors="raise")
             abs_diff = np.abs(r_num.values - p_num.values)
             rel_diff = abs_diff / (np.abs(r_num.values) + 1e-15)
             max_rel = max(max_rel, np.max(rel_diff))
         except (ValueError, TypeError):
-            assert (r[col].astype(str) == p[col].astype(str)).all(), \
+            assert (r[col].astype(str) == p[col].astype(str)).all(), (
                 f"String column '{col}' mismatch"
+            )
     return max_rel
 
 
@@ -74,31 +75,40 @@ def _compare_treat(r_file, p_file):
 # Normalization (normLibSizes)
 # ======================================================================
 
+
 class TestNormTMM:
     """TMM normalization variants."""
 
     def test_tmm_default(self):
         r = _load("R_norm_TMM.csv")
         p = _load("Py_norm_TMM.csv")
-        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (np.abs(r["norm.factors"].values) + 1e-15)
+        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (
+            np.abs(r["norm.factors"].values) + 1e-15
+        )
         assert np.max(rel) < 1e-3
 
     def test_tmmwsp(self):
         r = _load("R_norm_TMMwsp.csv")
         p = _load("Py_norm_TMMwsp.csv")
-        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (np.abs(r["norm.factors"].values) + 1e-15)
+        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (
+            np.abs(r["norm.factors"].values) + 1e-15
+        )
         assert np.max(rel) < 1e-3
 
     def test_rle(self):
         r = _load("R_norm_RLE.csv")
         p = _load("Py_norm_RLE.csv")
-        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (np.abs(r["norm.factors"].values) + 1e-15)
+        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (
+            np.abs(r["norm.factors"].values) + 1e-15
+        )
         assert np.max(rel) < 1e-3
 
     def test_upperquartile(self):
         r = _load("R_norm_UQ.csv")
         p = _load("Py_norm_UQ.csv")
-        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (np.abs(r["norm.factors"].values) + 1e-15)
+        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (
+            np.abs(r["norm.factors"].values) + 1e-15
+        )
         assert np.max(rel) < 1e-3
 
     def test_none(self):
@@ -109,37 +119,49 @@ class TestNormTMM:
     def test_tmm_refcolumn(self):
         r = _load("R_norm_TMM_ref1.csv")
         p = _load("Py_norm_TMM_ref1.csv")
-        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (np.abs(r["norm.factors"].values) + 1e-15)
+        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (
+            np.abs(r["norm.factors"].values) + 1e-15
+        )
         assert np.max(rel) < 1e-3
 
     def test_tmm_custom_trim(self):
         r = _load("R_norm_TMM_trim.csv")
         p = _load("Py_norm_TMM_trim.csv")
-        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (np.abs(r["norm.factors"].values) + 1e-15)
+        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (
+            np.abs(r["norm.factors"].values) + 1e-15
+        )
         assert np.max(rel) < 1e-3
 
     def test_tmm_no_weighting(self):
         r = _load("R_norm_TMM_noweight.csv")
         p = _load("Py_norm_TMM_noweight.csv")
-        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (np.abs(r["norm.factors"].values) + 1e-15)
+        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (
+            np.abs(r["norm.factors"].values) + 1e-15
+        )
         assert np.max(rel) < 1e-3
 
     def test_tmm_raw_matrix(self):
         r = _load("R_norm_TMM_raw.csv")
         p = _load("Py_norm_TMM_raw.csv")
-        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (np.abs(r["norm.factors"].values) + 1e-15)
+        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (
+            np.abs(r["norm.factors"].values) + 1e-15
+        )
         assert np.max(rel) < 1e-3
 
     def test_tmm_custom_libsize(self):
         r = _load("R_norm_TMM_customlib.csv")
         p = _load("Py_norm_TMM_customlib.csv")
-        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (np.abs(r["norm.factors"].values) + 1e-15)
+        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (
+            np.abs(r["norm.factors"].values) + 1e-15
+        )
         assert np.max(rel) < 1e-3
 
     def test_uq_p50(self):
         r = _load("R_norm_UQ_p50.csv")
         p = _load("Py_norm_UQ_p50.csv")
-        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (np.abs(r["norm.factors"].values) + 1e-15)
+        rel = np.abs(r["norm.factors"].values - p["norm.factors"].values) / (
+            np.abs(r["norm.factors"].values) + 1e-15
+        )
         assert np.max(rel) < 1e-3
 
 
@@ -173,6 +195,7 @@ class TestReferenceColumn:
 # ======================================================================
 # DGEList construction and operations
 # ======================================================================
+
 
 class TestDGEListBasic:
     """Basic DGEList creation."""
@@ -286,6 +309,7 @@ class TestDispersionSummary:
 # glmTreat (QL and LRT)
 # ======================================================================
 
+
 class TestQLTreat:
     """QL-based glmTreat on synthetic data (100 genes)."""
 
@@ -370,18 +394,22 @@ class TestLRTTreat:
 # camera (gene set testing)
 # ======================================================================
 
+
 class TestCameraRvsPy:
     """camera: R vs Python on simulated 100-gene data."""
 
-    @pytest.fixture(params=[
-        ("camera (default)", "R_camera_default.csv", "Py_camera_default.csv"),
-        ("camera (log-CPM)", "R_camera_logcpm.csv", "Py_camera_logcpm.csv"),
-        ("camera (use.ranks)", "R_camera_ranks.csv", "Py_camera_ranks.csv"),
-        ("camera (inter.gene.cor=0)", "R_camera_cor0.csv", "Py_camera_cor0.csv"),
-        ("camera (inter.gene.cor=0.05)", "R_camera_cor05.csv", "Py_camera_cor05.csv"),
-        ("camera (allow.neg.cor)", "R_camera_allowneg.csv", "Py_camera_allowneg.csv"),
-        ("camera (unsorted)", "R_camera_unsorted.csv", "Py_camera_unsorted.csv"),
-    ], ids=lambda x: x[0])
+    @pytest.fixture(
+        params=[
+            ("camera (default)", "R_camera_default.csv", "Py_camera_default.csv"),
+            ("camera (log-CPM)", "R_camera_logcpm.csv", "Py_camera_logcpm.csv"),
+            ("camera (use.ranks)", "R_camera_ranks.csv", "Py_camera_ranks.csv"),
+            ("camera (inter.gene.cor=0)", "R_camera_cor0.csv", "Py_camera_cor0.csv"),
+            ("camera (inter.gene.cor=0.05)", "R_camera_cor05.csv", "Py_camera_cor05.csv"),
+            ("camera (allow.neg.cor)", "R_camera_allowneg.csv", "Py_camera_allowneg.csv"),
+            ("camera (unsorted)", "R_camera_unsorted.csv", "Py_camera_unsorted.csv"),
+        ],
+        ids=lambda x: x[0],
+    )
     def camera_pair(self, request):
         name, r_file, p_file = request.param
         return name, _load_idx(r_file), _load_idx(p_file)
@@ -423,6 +451,7 @@ class TestCameraRvsPy:
 # fry
 # ======================================================================
 
+
 class TestFryRvsPy:
     """fry: R vs Python comparison."""
 
@@ -444,8 +473,7 @@ class TestFryRvsPy:
             p_p = p.loc[gs, "PValue"]
             r_logp = np.log10(max(r_p, 1e-300))
             p_logp = np.log10(max(p_p, 1e-300))
-            assert abs(r_logp - p_logp) < 4.0, \
-                f"{gs}: R_pval={r_p:.4e}, Py_pval={p_p:.4e}"
+            assert abs(r_logp - p_logp) < 4.0, f"{gs}: R_pval={r_p:.4e}, Py_pval={p_p:.4e}"
 
     def test_mixed_pvalue_exists(self):
         r = _load_idx("R_fry.csv")
@@ -463,6 +491,7 @@ class TestFryRvsPy:
 # ======================================================================
 # roast
 # ======================================================================
+
 
 class TestRoastRvsPy:
     """roast: R vs Python comparison (rotation-based, expect some variation)."""
@@ -489,13 +518,13 @@ class TestRoastRvsPy:
             if direction in r.index and direction in p.index:
                 r_p = r.loc[direction, r_col]
                 p_p = p.loc[direction, p_col]
-                assert abs(r_p - p_p) < 0.3, \
-                    f"{direction}: R={r_p:.4f}, Py={p_p:.4f}"
+                assert abs(r_p - p_p) < 0.3, f"{direction}: R={r_p:.4f}, Py={p_p:.4f}"
 
 
 # ======================================================================
 # mroast
 # ======================================================================
+
 
 class TestMroastRvsPy:
     """mroast: R vs Python comparison."""
@@ -526,13 +555,13 @@ class TestMroastRvsPy:
         for gs in common:
             r_p = r.loc[gs, "PValue"]
             p_p = p.loc[gs, "PValue"]
-            assert abs(r_p - p_p) < 0.3, \
-                f"{gs}: R={r_p:.4f}, Py={p_p:.4f}"
+            assert abs(r_p - p_p) < 0.3, f"{gs}: R={r_p:.4f}, Py={p_p:.4f}"
 
 
 # ======================================================================
 # romer
 # ======================================================================
+
 
 class TestRomerRvsPy:
     """romer: R vs Python comparison."""
@@ -574,5 +603,4 @@ class TestRomerRvsPy:
             for col in ["Up", "Down", "Mixed"]:
                 r_p = r.loc[gs, col]
                 p_p = p.loc[gs, col]
-                assert abs(r_p - p_p) < 0.3, \
-                    f"{gs} {col}: R={r_p:.4f}, Py={p_p:.4f}"
+                assert abs(r_p - p_p) < 0.3, f"{gs} {col}: R={r_p:.4f}, Py={p_p:.4f}"

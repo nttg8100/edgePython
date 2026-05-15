@@ -32,6 +32,7 @@ from .dgelist import make_dgelist
 # Numba-accelerated core functions
 # ---------------------------------------------------------------------------
 
+
 @njit(cache=True)
 def _digamma_nb(x):
     """Digamma (psi) function for x > 0. Accurate to ~15 digits."""
@@ -41,14 +42,21 @@ def _digamma_nb(x):
         x += 1.0
     r = 1.0 / (x * x)
     result += math.log(x) - 0.5 / x
-    result -= r * (1.0/12.0 - r * (1.0/120.0 - r * (1.0/252.0
-              - r * (1.0/240.0 - r * (5.0/660.0 - r * 691.0/32760.0)))))
+    result -= r * (
+        1.0 / 12.0
+        - r
+        * (
+            1.0 / 120.0
+            - r * (1.0 / 252.0 - r * (1.0 / 240.0 - r * (5.0 / 660.0 - r * 691.0 / 32760.0)))
+        )
+    )
     return result
 
 
 @njit(cache=True)
-def _ptmg_negll_and_grad_nb(para, X, offset, Y, n_one, n_two, ytwo,
-                             fid, cumsumy, posind, posindy, nb, nind, k):
+def _ptmg_negll_and_grad_nb(
+    para, X, offset, Y, n_one, n_two, ytwo, fid, cumsumy, posind, posindy, nb, nind, k
+):
     """Numba-compiled NBGMM negative log-likelihood + gradient."""
     beta = para[:nb]
     sigma_param = para[nb]
@@ -242,8 +250,9 @@ def _ptmg_negll_and_grad_nb(para, X, offset, Y, n_one, n_two, ytwo,
 
 
 @njit(cache=True)
-def _compute_pml_loglik_nb(offset, X, beta, logw, fid, k, posindy, Y,
-                            cumsumy, gamma, alpha, lam, nind, nb):
+def _compute_pml_loglik_nb(
+    offset, X, beta, logw, fid, k, posindy, Y, cumsumy, gamma, alpha, lam, nind, nb
+):
     """Numba-compiled PML log-likelihood evaluation."""
     nelem = len(posindy)
 
@@ -289,8 +298,9 @@ def _compute_pml_loglik_nb(offset, X, beta, logw, fid, k, posindy, Y,
 
 
 @njit(cache=True)
-def _opt_pml_nb(X, offset, Y_vals, fid, cumsumy, posindy, nb, nind, k,
-                beta_init, sigma0, sigma1, eps, ord_):
+def _opt_pml_nb(
+    X, offset, Y_vals, fid, cumsumy, posindy, nb, nind, k, beta_init, sigma0, sigma1, eps, ord_
+):
     """Numba-compiled PML optimizer.
 
     Returns (beta, logw, vb2, loglik, loglikp, logdet, step, stepd, sec_ord).
@@ -317,8 +327,7 @@ def _opt_pml_nb(X, offset, Y_vals, fid, cumsumy, posindy, nb, nind, k,
 
     # Initial log-likelihood
     loglik, extb = _compute_pml_loglik_nb(
-        offset, X, beta, logw, fid, k, posindy, Y_vals,
-        cumsumy, gamma, alpha, lam, nind, nb
+        offset, X, beta, logw, fid, k, posindy, Y_vals, cumsumy, gamma, alpha, lam, nind, nb
     )
 
     loglikp = 0.0
@@ -450,8 +459,7 @@ def _opt_pml_nb(X, offset, Y_vals, fid, cumsumy, posindy, nb, nind, k,
 
         loglikp = loglik
         loglik, extb = _compute_pml_loglik_nb(
-            offset, X, new_b, new_w, fid, k, posindy, Y_vals,
-            cumsumy, gamma, alpha, lam, nind, nb
+            offset, X, new_b, new_w, fid, k, posindy, Y_vals, cumsumy, gamma, alpha, lam, nind, nb
         )
 
         likdif = loglik - loglikp
@@ -492,8 +500,20 @@ def _opt_pml_nb(X, offset, Y_vals, fid, cumsumy, posindy, nb, nind, k,
                     new_w[s] = logw[s] + (minstep if steplogw[s] > 0 else -minstep)
 
             loglik, extb = _compute_pml_loglik_nb(
-                offset, X, new_b, new_w, fid, k, posindy, Y_vals,
-                cumsumy, gamma, alpha, lam, nind, nb
+                offset,
+                X,
+                new_b,
+                new_w,
+                fid,
+                k,
+                posindy,
+                Y_vals,
+                cumsumy,
+                gamma,
+                alpha,
+                lam,
+                nind,
+                nb,
             )
             likdif = loglik - loglikp
 
@@ -564,7 +584,7 @@ def _opt_pml_nb(X, offset, Y_vals, fid, cumsumy, posindy, nb, nind, k,
                 acc = 0.0
                 for i in range(start, end):
                     extbp = extb[i] * extb[i]
-                    acc += gstar_extb_phi[i] * (gamma*gamma + extbp - 4*gamma*extb[i])
+                    acc += gstar_extb_phi[i] * (gamma * gamma + extbp - 4 * gamma * extb[i])
                 four_der[s] = gamma * acc + lam * math.exp(logw[s])
             acc = 0.0
             for s in range(k):
@@ -583,8 +603,10 @@ def _opt_pml_nb(X, offset, Y_vals, fid, cumsumy, posindy, nb, nind, k,
                 for i in range(start, end):
                     extbp = extb[i] * extb[i]
                     acc2 += gstar_extb_phi[i] * (
-                        gamma**3 - 11*gamma*gamma*extb[i]
-                        + 11*gamma*extbp - extbp*extb[i]
+                        gamma**3
+                        - 11 * gamma * gamma * extb[i]
+                        + 11 * gamma * extbp
+                        - extbp * extb[i]
                     )
                 four_der[s] = gamma * acc2 + lam * math.exp(logw[s])
             acc = 0.0
@@ -614,9 +636,11 @@ def _get_cell_nb(X, fid, nb, k):
                 break
     return iscell
 
+
 # ---------------------------------------------------------------------------
 # Utility helpers
 # ---------------------------------------------------------------------------
+
 
 def _center_design(pred: np.ndarray):
     """Center design columns and scale to unit variance.
@@ -654,9 +678,7 @@ def _center_design(pred: np.ndarray):
     if int_col is None:
         raise ValueError("The design matrix must include an intercept term.")
     if (sds == 0).sum() > 1 or (sds < 0).any():
-        raise ValueError(
-            "Some predictors have zero variation or a zero vector."
-        )
+        raise ValueError("Some predictors have zero variation or a zero vector.")
 
     return cm, sds, int_col
 
@@ -710,7 +732,7 @@ def _call_cumsumy(count, fid, k, ngene):
     for s in range(k):
         start, end = fid[s], fid[s + 1]
         chunk = count[:, start:end]
-        if hasattr(chunk, 'toarray'):
+        if hasattr(chunk, "toarray"):
             cumsumy[:, s] = np.asarray(chunk.sum(axis=1)).ravel()
         else:
             cumsumy[:, s] = chunk.sum(axis=1).ravel()
@@ -745,11 +767,11 @@ def _call_posindy(y_gene: np.ndarray):
     ytwo = Y[Y > 2]
 
     return {
-        'posindy': posindy,
-        'Y': Y,
-        'mct': mct,
-        'n_onetwo': np.array([n_one, n_two], dtype=np.int32),
-        'ytwo': ytwo,
+        "posindy": posindy,
+        "Y": Y,
+        "mct": mct,
+        "n_onetwo": np.array([n_one, n_two], dtype=np.int32),
+        "ytwo": ytwo,
     }
 
 
@@ -770,7 +792,7 @@ def _get_cv(offset, X, beta, cell_ind, ncell, nc):
     for i in range(ncell):
         ind = int(cell_ind[i])
         extb = extb + X[:, ind] * beta[ind]
-    with np.errstate(over='ignore'):
+    with np.errstate(over="ignore"):
         extb = np.exp(extb)
     m = extb.mean()
     if m > 0:
@@ -782,16 +804,29 @@ def _get_cv(offset, X, beta, cell_ind, ncell, nc):
 # NBGMM log-likelihood + gradient (ptmg_ll_der)
 # ---------------------------------------------------------------------------
 
-def _ptmg_negll_and_grad(para, X, offset, Y, n_onetwo, ytwo, fid, cumsumy,
-                         posind, posindy, nb, nind, k):
+
+def _ptmg_negll_and_grad(
+    para, X, offset, Y, n_onetwo, ytwo, fid, cumsumy, posind, posindy, nb, nind, k
+):
     """Negative log-likelihood and gradient for NBGMM (L-BFGS-B stage).
 
     Delegates to numba-compiled ``_ptmg_negll_and_grad_nb``.
     """
     return _ptmg_negll_and_grad_nb(
-        para, X, offset, Y,
-        int(n_onetwo[0]), int(n_onetwo[1]), ytwo,
-        fid, cumsumy, posind, posindy, nb, nind, k
+        para,
+        X,
+        offset,
+        Y,
+        int(n_onetwo[0]),
+        int(n_onetwo[1]),
+        ytwo,
+        fid,
+        cumsumy,
+        posind,
+        posindy,
+        nb,
+        nind,
+        k,
     )
 
 
@@ -799,25 +834,54 @@ def _ptmg_negll_and_grad(para, X, offset, Y, n_onetwo, ytwo, fid, cumsumy,
 # Penalized ML optimizer (opt_pml for NBGMM)
 # ---------------------------------------------------------------------------
 
-def _opt_pml(X, offset, Y_vals, fid, cumsumy, posind, posindy, nb, nind, k,
-             beta_init, sigma, reml=0, eps=1e-6, ord_=1):
+
+def _opt_pml(
+    X,
+    offset,
+    Y_vals,
+    fid,
+    cumsumy,
+    posind,
+    posindy,
+    nb,
+    nind,
+    k,
+    beta_init,
+    sigma,
+    reml=0,
+    eps=1e-6,
+    ord_=1,
+):
     """Port of nebula's ``opt_pml`` C++ function.
 
     Delegates to numba-compiled ``_opt_pml_nb``.
     """
-    beta, logw, vb2, loglik, loglikp, logdet, step, stepd, sec_ord = \
-        _opt_pml_nb(X, offset, Y_vals, fid, cumsumy, posindy, nb, nind, k,
-                    beta_init, sigma[0], sigma[1], eps, ord_)
+    beta, logw, vb2, loglik, loglikp, logdet, step, stepd, sec_ord = _opt_pml_nb(
+        X,
+        offset,
+        Y_vals,
+        fid,
+        cumsumy,
+        posindy,
+        nb,
+        nind,
+        k,
+        beta_init,
+        sigma[0],
+        sigma[1],
+        eps,
+        ord_,
+    )
     return {
-        'beta': beta,
-        'logw': logw,
-        'var': vb2,
-        'loglik': loglik,
-        'loglikp': loglikp,
-        'logdet': logdet,
-        'iter': int(step),
-        'damp': int(stepd),
-        'second': sec_ord,
+        "beta": beta,
+        "logw": logw,
+        "var": vb2,
+        "loglik": loglik,
+        "loglikp": loglikp,
+        "logdet": logdet,
+        "iter": int(step),
+        "damp": int(stepd),
+        "second": sec_ord,
     }
 
 
@@ -825,23 +889,24 @@ def _opt_pml(X, offset, Y_vals, fid, cumsumy, posind, posindy, nb, nind, k,
 # Convergence check
 # ---------------------------------------------------------------------------
 
+
 def _check_conv(repml, conv, nb, vare, min_bounds, max_bounds, cutoff=1e-8):
     """Port of nebula's ``check_conv``."""
     if conv == 1:
         if vare[0] == max_bounds[0] or vare[1] == min_bounds[1]:
             conv = -60
-        elif np.isnan(repml['loglik']):
+        elif np.isnan(repml["loglik"]):
             conv = -30
-        elif repml['iter'] == 50:
+        elif repml["iter"] == 50:
             conv = -20
-        elif repml['damp'] == 11:
+        elif repml["damp"] == 11:
             conv = -10
-        elif repml['damp'] == 12:
+        elif repml["damp"] == 12:
             conv = -40
 
     if nb > 1:
         try:
-            eigvals = np.linalg.eigvalsh(repml['var'])
+            eigvals = np.linalg.eigvalsh(repml["var"])
             if eigvals.min() < cutoff:
                 conv = -25
         except np.linalg.LinAlgError:
@@ -854,9 +919,27 @@ def _check_conv(repml, conv, nb, vare, min_bounds, max_bounds, cutoff=1e-8):
 # Per-gene fitting
 # ---------------------------------------------------------------------------
 
-def _fit_gene_nebula_ln(gene_idx, y_gene, X, offset, fid, cumsumy_gene,
-                        posind, nb, nind, k, sds, int_col, moffset,
-                        min_bounds, max_bounds, mfs, cutoff_cell, kappa):
+
+def _fit_gene_nebula_ln(
+    gene_idx,
+    y_gene,
+    X,
+    offset,
+    fid,
+    cumsumy_gene,
+    posind,
+    nb,
+    nind,
+    k,
+    sds,
+    int_col,
+    moffset,
+    min_bounds,
+    max_bounds,
+    mfs,
+    cutoff_cell,
+    kappa,
+):
     """Fit NBGMM (NEBULA-LN) for a single gene.
 
     Returns
@@ -864,11 +947,11 @@ def _fit_gene_nebula_ln(gene_idx, y_gene, X, offset, fid, cumsumy_gene,
     tuple: (beta_rescaled, se_rescaled, sigma2, inv_phi, conv, logw)
     """
     posv = _call_posindy(y_gene)
-    posindy = posv['posindy']
-    Y = posv['Y']
-    mct = posv['mct']
-    n_onetwo = posv['n_onetwo']
-    ytwo = posv['ytwo']
+    posindy = posv["posindy"]
+    Y = posv["Y"]
+    mct = posv["mct"]
+    n_onetwo = posv["n_onetwo"]
+    ytwo = posv["ytwo"]
 
     # ord parameter
     if mct * mfs < 3:
@@ -880,8 +963,8 @@ def _fit_gene_nebula_ln(gene_idx, y_gene, X, offset, fid, cumsumy_gene,
     lmct = np.log(max(mct, 1e-300))
     para_init = np.zeros(nb + 2)
     para_init[int_col] = lmct - moffset
-    para_init[nb] = 1.0       # sigma_param
-    para_init[nb + 1] = 1.0   # phi (cell-level overdispersion)
+    para_init[nb] = 1.0  # sigma_param
+    para_init[nb + 1] = 1.0  # phi (cell-level overdispersion)
 
     lower = np.concatenate([np.full(nb, -100.0), [min_bounds[0], min_bounds[1]]])
     upper = np.concatenate([np.full(nb, 100.0), [max_bounds[0], max_bounds[1]]])
@@ -892,12 +975,11 @@ def _fit_gene_nebula_ln(gene_idx, y_gene, X, offset, fid, cumsumy_gene,
         res = _minimize(
             _ptmg_negll_and_grad,
             para_init,
-            args=(X, offset, Y, n_onetwo, ytwo, fid, cumsumy_gene,
-                  posind, posindy, nb, nind, k),
-            method='L-BFGS-B',
+            args=(X, offset, Y, n_onetwo, ytwo, fid, cumsumy_gene, posind, posindy, nb, nind, k),
+            method="L-BFGS-B",
             jac=True,
             bounds=bounds,
-            options={'ftol': 1e-6, 'maxiter': 200},
+            options={"ftol": 1e-6, "maxiter": 200},
         )
         refp = res.x
         is_conv = 1 if res.success else 0
@@ -917,7 +999,7 @@ def _fit_gene_nebula_ln(gene_idx, y_gene, X, offset, fid, cumsumy_gene,
         try:
             cv2p = _get_cv(offset, X, refp[:nb], cell_ind, ncell, nind)
         except Exception:
-            cv2p = float('nan')
+            cv2p = float("nan")
     else:
         cv2p = 0.0
 
@@ -944,21 +1026,40 @@ def _fit_gene_nebula_ln(gene_idx, y_gene, X, offset, fid, cumsumy_gene,
     # Stage 2: Penalized ML
     try:
         repml = _opt_pml(
-            X, offset, Y, fid, cumsumy_gene, posind, posindy,
-            nb, nind, k, betae, vare, reml=0, eps=1e-6, ord_=ord_,
+            X,
+            offset,
+            Y,
+            fid,
+            cumsumy_gene,
+            posind,
+            posindy,
+            nb,
+            nind,
+            k,
+            betae,
+            vare,
+            reml=0,
+            eps=1e-6,
+            ord_=ord_,
         )
     except Exception:
         # Numerical failure in PML — mark as non-converged
-        return (np.full(nb, np.nan), np.full(nb, np.nan),
-                vare[0], 1.0 / vare[1] if vare[1] > 0 else np.inf,
-                -30, 0, np.zeros(k))
+        return (
+            np.full(nb, np.nan),
+            np.full(nb, np.nan),
+            vare[0],
+            1.0 / vare[1] if vare[1] > 0 else np.inf,
+            -30,
+            0,
+            np.zeros(k),
+        )
 
     conv = _check_conv(repml, conv, nb, vare, min_bounds, max_bounds)
 
     # Invert Fisher information to get covariance
-    beta_pml = repml['beta']
-    logw = repml['logw']
-    fisher = repml['var']  # This is vb2 (the Schur complement)
+    beta_pml = repml["beta"]
+    logw = repml["logw"]
+    fisher = repml["var"]  # This is vb2 (the Schur complement)
 
     se = np.full(nb, np.nan)
     if conv != -25:
@@ -984,11 +1085,24 @@ def _fit_gene_nebula_ln(gene_idx, y_gene, X, offset, fid, cumsumy_gene,
 # Main entry points
 # ---------------------------------------------------------------------------
 
-def glm_sc_fit(y, cell_meta=None, design=None, sample=None,
-               offset=None, norm_method='TMM', method='nebula',
-               min_bounds=None, max_bounds=None,
-               cpc=0.005, mincp=5, cutoff_cell=20, kappa=800,
-               ncore=1, verbose=True):
+
+def glm_sc_fit(
+    y,
+    cell_meta=None,
+    design=None,
+    sample=None,
+    offset=None,
+    norm_method="TMM",
+    method="nebula",
+    min_bounds=None,
+    max_bounds=None,
+    cpc=0.005,
+    mincp=5,
+    cutoff_cell=20,
+    kappa=800,
+    ncore=1,
+    verbose=True,
+):
     """Fit a single-cell NB gamma mixed model (NEBULA-LN).
 
     Parameters
@@ -1046,6 +1160,7 @@ def glm_sc_fit(y, cell_meta=None, design=None, sample=None,
     gene_names = None
     try:
         import anndata
+
         is_anndata = isinstance(y, anndata.AnnData)
     except ImportError:
         is_anndata = False
@@ -1053,20 +1168,20 @@ def glm_sc_fit(y, cell_meta=None, design=None, sample=None,
     if is_anndata:
         adata = y
         X_raw = adata.X
-        if hasattr(X_raw, 'toarray'):
+        if hasattr(X_raw, "toarray"):
             X_raw = X_raw.toarray()
         counts = np.asarray(X_raw, dtype=np.float64).T  # genes × cells
         if cell_meta is None:
             cell_meta = adata.obs.copy()
         gene_names = np.array(adata.var_names)
-    elif isinstance(y, dict) and 'counts' in y:
-        counts = np.asarray(y['counts'], dtype=np.float64)
-        if cell_meta is None and 'obs' in y:
-            cell_meta = y['obs']
-        if gene_names is None and 'genes' in y:
-            gene_names = np.asarray(y['genes'])
+    elif isinstance(y, dict) and "counts" in y:
+        counts = np.asarray(y["counts"], dtype=np.float64)
+        if cell_meta is None and "obs" in y:
+            cell_meta = y["obs"]
+        if gene_names is None and "genes" in y:
+            gene_names = np.asarray(y["genes"])
     else:
-        if hasattr(y, 'toarray'):
+        if hasattr(y, "toarray"):
             counts = np.asarray(y.toarray(), dtype=np.float64)
         else:
             counts = np.asarray(y, dtype=np.float64)
@@ -1077,36 +1192,28 @@ def glm_sc_fit(y, cell_meta=None, design=None, sample=None,
 
     # --- Resolve sample IDs ---
     if sample is None:
-        raise ValueError(
-            "The 'sample' argument is required. Provide per-cell sample IDs."
-        )
+        raise ValueError("The 'sample' argument is required. Provide per-cell sample IDs.")
     if isinstance(sample, str):
         if cell_meta is None:
-            raise ValueError(
-                f"sample='{sample}' requires cell_meta with that column."
-            )
+            raise ValueError(f"sample='{sample}' requires cell_meta with that column.")
         sample_ids = np.asarray(cell_meta[sample])
     else:
         sample_ids = np.asarray(sample)
     if len(sample_ids) != nind:
-        raise ValueError(
-            "Length of sample IDs should equal the number of cells."
-        )
+        raise ValueError("Length of sample IDs should equal the number of cells.")
 
     # --- Save design column names before sort (which may convert DataFrame → numpy) ---
     _design_colnames = None
-    if design is not None and hasattr(design, 'columns'):
+    if design is not None and hasattr(design, "columns"):
         _design_colnames = list(design.columns)
 
     # --- Sort cells by sample (group_cell) ---
     sample_ids_str = np.array([str(s) for s in sample_ids])
     levels = list(dict.fromkeys(sample_ids_str))  # unique, order-preserving
-    sample_numeric = np.array(
-        [levels.index(s) + 1 for s in sample_ids_str], dtype=np.int32
-    )
+    sample_numeric = np.array([levels.index(s) + 1 for s in sample_ids_str], dtype=np.int32)
     if not np.all(sample_numeric[:-1] <= sample_numeric[1:]):
         # Need to sort
-        order = np.argsort(sample_numeric, kind='stable')
+        order = np.argsort(sample_numeric, kind="stable")
         counts = counts[:, order]
         sample_numeric = sample_numeric[order]
         sample_ids_str = sample_ids_str[order]
@@ -1135,17 +1242,14 @@ def glm_sc_fit(y, cell_meta=None, design=None, sample=None,
         if isinstance(design, str):
             # Formula — resolve against cell_meta
             from .utils import model_matrix
-            pred = np.asarray(
-                model_matrix(design, cell_meta), dtype=np.float64
-            )
+
+            pred = np.asarray(model_matrix(design, cell_meta), dtype=np.float64)
         else:
             pred = np.asarray(design, dtype=np.float64)
         if pred.shape[0] != nind:
-            raise ValueError(
-                "Design matrix rows must equal number of cells."
-            )
+            raise ValueError("Design matrix rows must equal number of cells.")
         predn = None
-        if hasattr(design, 'columns'):
+        if hasattr(design, "columns"):
             predn = list(design.columns)
         elif isinstance(design, pd.DataFrame):
             predn = list(design.columns)
@@ -1157,20 +1261,20 @@ def glm_sc_fit(y, cell_meta=None, design=None, sample=None,
     if offset is not None:
         # User-provided offset (positive scaling factors)
         log_offset, moffset, cv2 = _cv_offset(offset, nind)
-    elif norm_method.upper() == 'TMM':
+    elif norm_method.upper() == "TMM":
         # Pseudobulk TMM normalization → per-cell offset
         lib_size = counts.sum(axis=0).astype(np.float64)
         pb = np.zeros((ngene, k), dtype=np.float64)
         for s in range(k):
             start, end = fid[s], fid[s + 1]
             chunk = counts[:, start:end]
-            if hasattr(chunk, 'toarray'):
+            if hasattr(chunk, "toarray"):
                 pb[:, s] = np.asarray(chunk.sum(axis=1)).ravel()
             else:
                 pb[:, s] = chunk.sum(axis=1).ravel()
         pb_dge = make_dgelist(pb)
         pb_dge = calc_norm_factors(pb_dge)
-        norm_factors = pb_dge['samples']['norm.factors'].values
+        norm_factors = pb_dge["samples"]["norm.factors"].values
         # Expand sample-level norm factors to per-cell
         cell_nf = np.empty(nind, dtype=np.float64)
         for s in range(k):
@@ -1196,11 +1300,15 @@ def glm_sc_fit(y, cell_meta=None, design=None, sample=None,
 
     # --- Gene filtering ---
     # Non-zero cell counts per gene
-    if hasattr(counts, 'nnz'):
+    if hasattr(counts, "nnz"):
         # sparse
         from scipy.sparse import issparse
-        nz_per_gene = np.diff(counts.indptr) if hasattr(counts, 'indptr') else \
-            np.array([(counts[g, :] != 0).sum() for g in range(ngene)])
+
+        nz_per_gene = (
+            np.diff(counts.indptr)
+            if hasattr(counts, "indptr")
+            else np.array([(counts[g, :] != 0).sum() for g in range(ngene)])
+        )
     else:
         nz_per_gene = (counts != 0).sum(axis=1)
 
@@ -1224,14 +1332,29 @@ def glm_sc_fit(y, cell_meta=None, design=None, sample=None,
     # --- Per-gene fitting ---
     def _fit_one(idx):
         g = gid[idx]
-        if hasattr(counts, 'toarray'):
+        if hasattr(counts, "toarray"):
             y_gene = np.asarray(counts[g, :].toarray()).ravel()
         else:
             y_gene = counts[g, :]
         return _fit_gene_nebula_ln(
-            g, y_gene, pred, log_offset, fid, cumsumy[g, :],
-            posind_per_gene[idx], nb, nind, k, sds, int_col, moffset,
-            min_bounds, max_bounds, mfs, cutoff_cell, kappa,
+            g,
+            y_gene,
+            pred,
+            log_offset,
+            fid,
+            cumsumy[g, :],
+            posind_per_gene[idx],
+            nb,
+            nind,
+            k,
+            sds,
+            int_col,
+            moffset,
+            min_bounds,
+            max_bounds,
+            mfs,
+            cutoff_cell,
+            kappa,
         )
 
     if ncore > 1:
@@ -1266,14 +1389,14 @@ def glm_sc_fit(y, cell_meta=None, design=None, sample=None,
     if predn is None:
         predn = _design_colnames
     if predn is None:
-        if design is not None and hasattr(design, 'columns'):
+        if design is not None and hasattr(design, "columns"):
             predn = list(design.columns)
     if predn is None:
-        predn = [f"V{i+1}" for i in range(nb)]
+        predn = [f"V{i + 1}" for i in range(nb)]
 
     # --- Gene annotation DataFrame ---
     if gene_names is not None:
-        genes_df = pd.DataFrame({'gene': gene_names[gid]})
+        genes_df = pd.DataFrame({"gene": gene_names[gid]})
     else:
         genes_df = None
 
@@ -1282,22 +1405,22 @@ def glm_sc_fit(y, cell_meta=None, design=None, sample=None,
 
     # --- DGEGLM-like return ---
     return {
-        'coefficients': coefficients,
-        'se': se_arr,
-        'dispersion': cell_disp,
-        'sigma_sample': sigma_sample,
-        'convergence': convergence,
-        'design': pred,
-        'offset': log_offset,
-        'genes': genes_df,
-        'gene_mask': gene_mask,
-        'method': 'nebula_ln',
-        'ncells': nind,
-        'nsamples': k,
-        'predictor_names': predn,
-        'sample_map': sample_ids_str,
-        'samples_unique': np.array(levels),
-        'ave_log_abundance': ave_log_abund,
+        "coefficients": coefficients,
+        "se": se_arr,
+        "dispersion": cell_disp,
+        "sigma_sample": sigma_sample,
+        "convergence": convergence,
+        "design": pred,
+        "offset": log_offset,
+        "genes": genes_df,
+        "gene_mask": gene_mask,
+        "method": "nebula_ln",
+        "ncells": nind,
+        "nsamples": k,
+        "predictor_names": predn,
+        "sample_map": sample_ids_str,
+        "samples_unique": np.array(levels),
+        "ave_log_abundance": ave_log_abund,
     }
 
 
@@ -1338,15 +1461,15 @@ def shrink_sc_disp(fit, counts=None, covariate=None, robust=True):
     import warnings
     from .limma_port import squeeze_var
 
-    dispersion = fit['dispersion']
+    dispersion = fit["dispersion"]
     ngenes = len(dispersion)
 
     # Convert to phi = 1/dispersion
-    with np.errstate(divide='ignore'):
+    with np.errstate(divide="ignore"):
         phi_raw = np.where(dispersion > 0, 1.0 / dispersion, np.inf)
 
     # Convergence mask: only use converged genes for prior estimation
-    conv_mask = fit['convergence'] == 1
+    conv_mask = fit["convergence"] == 1
 
     # Floor phi at a small positive value; mark inf as NaN
     phi_floor = 1e-8
@@ -1354,9 +1477,9 @@ def shrink_sc_disp(fit, counts=None, covariate=None, robust=True):
     phi_use[~np.isfinite(phi_use)] = np.nan
 
     # Residual degrees of freedom: N - p - (K - 1)
-    n_cells = fit['ncells']
-    n_predictors = fit['design'].shape[1]
-    n_samples = fit['nsamples']
+    n_cells = fit["ncells"]
+    n_predictors = fit["design"].shape[1]
+    n_samples = fit["nsamples"]
     df_residual = n_cells - n_predictors - (n_samples - 1)
     df_residual = max(df_residual, 1)
 
@@ -1364,14 +1487,14 @@ def shrink_sc_disp(fit, counts=None, covariate=None, robust=True):
     if covariate is not None:
         cov = np.asarray(covariate, dtype=np.float64)
     elif counts is not None:
-        if hasattr(counts, 'toarray'):
+        if hasattr(counts, "toarray"):
             mean_cpc = np.asarray(counts.mean(axis=1)).ravel()
         else:
             mean_cpc = counts.mean(axis=1).ravel()
-        gene_mask = fit['gene_mask']
+        gene_mask = fit["gene_mask"]
         cov = np.log2(mean_cpc[gene_mask] + 0.5)
-    elif 'ave_log_abundance' in fit:
-        cov = fit['ave_log_abundance']
+    elif "ave_log_abundance" in fit:
+        cov = fit["ave_log_abundance"]
     else:
         cov = None
 
@@ -1381,12 +1504,12 @@ def shrink_sc_disp(fit, counts=None, covariate=None, robust=True):
 
     if len(idx_ok) < 3:
         warnings.warn("Fewer than 3 converged genes; skipping shrinkage.")
-        fit['phi_raw'] = phi_raw
-        fit['phi_post'] = phi_raw.copy()
-        fit['phi_prior'] = np.nan
-        fit['df_residual'] = df_residual
-        fit['df_prior_phi'] = 0.0
-        fit['dispersion_shrunk'] = fit['dispersion'].copy()
+        fit["phi_raw"] = phi_raw
+        fit["phi_post"] = phi_raw.copy()
+        fit["phi_prior"] = np.nan
+        fit["df_residual"] = df_residual
+        fit["df_prior_phi"] = 0.0
+        fit["dispersion_shrunk"] = fit["dispersion"].copy()
         return fit
 
     phi_ok = phi_use[idx_ok]
@@ -1395,53 +1518,49 @@ def shrink_sc_disp(fit, counts=None, covariate=None, robust=True):
     # Call squeeze_var with scalar df (same for all genes).
     # Fall back gracefully: trended → untrended → no shrinkage.
     sv = None
-    for cov_attempt in ([cov_ok, None] if cov_ok is not None else [None]):
+    for cov_attempt in [cov_ok, None] if cov_ok is not None else [None]:
         try:
-            sv = squeeze_var(phi_ok, df=float(df_residual),
-                             covariate=cov_attempt, robust=robust)
+            sv = squeeze_var(phi_ok, df=float(df_residual), covariate=cov_attempt, robust=robust)
             break
         except (ValueError, RuntimeError):
             continue
     if sv is None:
         try:
-            sv = squeeze_var(phi_ok, df=float(df_residual),
-                             covariate=None, robust=False)
+            sv = squeeze_var(phi_ok, df=float(df_residual), covariate=None, robust=False)
         except (ValueError, RuntimeError):
             warnings.warn("squeeze_var failed; returning unshrunk estimates.")
-            fit['phi_raw'] = phi_raw
-            fit['phi_post'] = phi_raw.copy()
-            fit['phi_prior'] = np.nanmedian(phi_ok)
-            fit['df_residual'] = df_residual
-            fit['df_prior_phi'] = 0.0
-            fit['dispersion_shrunk'] = fit['dispersion'].copy()
+            fit["phi_raw"] = phi_raw
+            fit["phi_post"] = phi_raw.copy()
+            fit["phi_prior"] = np.nanmedian(phi_ok)
+            fit["df_residual"] = df_residual
+            fit["df_prior_phi"] = 0.0
+            fit["dispersion_shrunk"] = fit["dispersion"].copy()
             return fit
 
     # Map results back to full gene array
     phi_post = np.full(ngenes, np.nan)
-    phi_post[idx_ok] = sv['var_post']
+    phi_post[idx_ok] = sv["var_post"]
 
     phi_prior_full = np.full(ngenes, np.nan)
-    if isinstance(sv['var_prior'], np.ndarray):
-        phi_prior_full[idx_ok] = sv['var_prior']
-        median_prior = np.nanmedian(sv['var_prior'])
+    if isinstance(sv["var_prior"], np.ndarray):
+        phi_prior_full[idx_ok] = sv["var_prior"]
+        median_prior = np.nanmedian(sv["var_prior"])
     else:
-        phi_prior_full[:] = sv['var_prior']
-        median_prior = sv['var_prior']
+        phi_prior_full[:] = sv["var_prior"]
+        median_prior = sv["var_prior"]
 
     # Non-converged genes get the prior value
     phi_post[~ok_mask] = median_prior
     phi_prior_full[~ok_mask] = median_prior
 
     # Store results
-    fit['phi_raw'] = phi_raw
-    fit['phi_post'] = phi_post
-    fit['phi_prior'] = phi_prior_full
-    fit['df_residual'] = df_residual
-    fit['df_prior_phi'] = sv['df_prior']
-    with np.errstate(divide='ignore'):
-        fit['dispersion_shrunk'] = np.where(
-            phi_post > 0, 1.0 / phi_post, np.inf
-        )
+    fit["phi_raw"] = phi_raw
+    fit["phi_post"] = phi_post
+    fit["phi_prior"] = phi_prior_full
+    fit["df_residual"] = df_residual
+    fit["df_prior_phi"] = sv["df_prior"]
+    with np.errstate(divide="ignore"):
+        fit["dispersion_shrunk"] = np.where(phi_post > 0, 1.0 / phi_post, np.inf)
 
     return fit
 
@@ -1464,16 +1583,14 @@ def glm_sc_test(fit, coef=None, contrast=None):
     dict with key ``'table'`` containing a DataFrame with columns:
     logFC, SE, z, PValue, FDR, sigma_sample, dispersion, converged.
     """
-    coefficients = fit['coefficients']
-    se_arr = fit['se']
+    coefficients = fit["coefficients"]
+    se_arr = fit["se"]
     ngenes, nb = coefficients.shape
 
     if contrast is not None:
         contrast = np.asarray(contrast, dtype=np.float64)
         logFC = coefficients @ contrast
-        se = np.sqrt(np.maximum(
-            np.sum((se_arr ** 2) * (contrast ** 2), axis=1), 0
-        ))
+        se = np.sqrt(np.maximum(np.sum((se_arr**2) * (contrast**2), axis=1), 0))
     else:
         if coef is None:
             coef = nb - 1
@@ -1481,7 +1598,7 @@ def glm_sc_test(fit, coef=None, contrast=None):
         se = se_arr[:, coef]
 
     z = logFC / se
-    pvalue = _chi2.sf(z ** 2, 1)
+    pvalue = _chi2.sf(z**2, 1)
 
     # FDR (Benjamini-Hochberg)
     n = len(pvalue)
@@ -1489,21 +1606,24 @@ def glm_sc_test(fit, coef=None, contrast=None):
     fdr = np.full(n, np.nan)
     if valid.any():
         from statsmodels.stats.multitest import multipletests
-        _, fdr_vals, _, _ = multipletests(pvalue[valid], method='fdr_bh')
+
+        _, fdr_vals, _, _ = multipletests(pvalue[valid], method="fdr_bh")
         fdr[valid] = fdr_vals
 
-    table = pd.DataFrame({
-        'logFC': logFC,
-        'SE': se,
-        'z': z,
-        'PValue': pvalue,
-        'FDR': fdr,
-        'sigma_sample': fit['sigma_sample'],
-        'dispersion': fit['dispersion'],
-        'converged': fit['convergence'],
-    })
+    table = pd.DataFrame(
+        {
+            "logFC": logFC,
+            "SE": se,
+            "z": z,
+            "PValue": pvalue,
+            "FDR": fdr,
+            "sigma_sample": fit["sigma_sample"],
+            "dispersion": fit["dispersion"],
+            "converged": fit["convergence"],
+        }
+    )
 
-    if fit.get('genes') is not None:
-        table.index = fit['genes']
+    if fit.get("genes") is not None:
+        table.index = fit["genes"]
 
-    return {'table': table}
+    return {"table": table}

@@ -31,8 +31,8 @@ class _EdgeRBase(dict):
 
     @property
     def shape(self):
-        if 'counts' in self:
-            return self['counts'].shape
+        if "counts" in self:
+            return self["counts"].shape
         return None
 
     def __repr__(self):
@@ -49,44 +49,44 @@ class _EdgeRBase(dict):
 
     def head(self, n=5):
         """Show first n rows."""
-        if 'table' in self:
-            return self['table'].head(n)
-        if 'counts' in self:
+        if "table" in self:
+            return self["table"].head(n)
+        if "counts" in self:
             return pd.DataFrame(
-                self['counts'][:n],
+                self["counts"][:n],
                 index=_get_rownames(self)[:n] if _get_rownames(self) is not None else None,
-                columns=_get_colnames(self) if _get_colnames(self) is not None else None
+                columns=_get_colnames(self) if _get_colnames(self) is not None else None,
             )
         return None
 
     def tail(self, n=5):
         """Show last n rows."""
-        if 'table' in self:
-            return self['table'].tail(n)
-        if 'counts' in self:
+        if "table" in self:
+            return self["table"].tail(n)
+        if "counts" in self:
             return pd.DataFrame(
-                self['counts'][-n:],
+                self["counts"][-n:],
                 index=_get_rownames(self)[-n:] if _get_rownames(self) is not None else None,
-                columns=_get_colnames(self) if _get_colnames(self) is not None else None
+                columns=_get_colnames(self) if _get_colnames(self) is not None else None,
             )
         return None
 
 
 def _get_rownames(obj):
     """Get row names from genes or counts."""
-    if 'genes' in obj and obj['genes'] is not None:
-        return list(obj['genes'].index)
-    if 'counts' in obj and obj['counts'] is not None:
-        c = obj['counts']
-        if hasattr(c, 'index'):
+    if "genes" in obj and obj["genes"] is not None:
+        return list(obj["genes"].index)
+    if "counts" in obj and obj["counts"] is not None:
+        c = obj["counts"]
+        if hasattr(c, "index"):
             return list(c.index)
     return None
 
 
 def _get_colnames(obj):
     """Get column names from samples or counts."""
-    if 'samples' in obj and obj['samples'] is not None:
-        return list(obj['samples'].index)
+    if "samples" in obj and obj["samples"] is not None:
+        return list(obj["samples"].index)
     return None
 
 
@@ -105,7 +105,11 @@ def _subset_matrix_or_df(x, i=None, j=None):
     if isinstance(x, np.ndarray):
         if x.ndim == 2:
             if i is not None and j is not None:
-                return x[np.ix_(np.atleast_1d(i), np.atleast_1d(j))] if not isinstance(i, slice) else x[i, :][:, j]
+                return (
+                    x[np.ix_(np.atleast_1d(i), np.atleast_1d(j))]
+                    if not isinstance(i, slice)
+                    else x[i, :][:, j]
+                )
             elif i is not None:
                 return x[i] if isinstance(i, slice) else x[np.atleast_1d(i)]
             elif j is not None:
@@ -126,7 +130,7 @@ def _resolve_index(idx, names):
     idx = np.atleast_1d(idx)
     if idx.dtype == bool:
         return np.where(idx)[0]
-    if idx.dtype.kind in ('U', 'S', 'O') and names is not None:
+    if idx.dtype.kind in ("U", "S", "O") and names is not None:
         names_arr = np.asarray(names)
         result = []
         for name in idx:
@@ -157,10 +161,10 @@ class DGEList(_EdgeRBase):
     weights : ndarray or None
     """
 
-    _IJ = {'counts', 'pseudo.counts', 'offset', 'weights'}
-    _IX = {'genes'}
-    _JX = {'samples'}
-    _I = {'AveLogCPM', 'trended.dispersion', 'tagwise.dispersion', 'prior.n', 'prior.df'}
+    _IJ = {"counts", "pseudo.counts", "offset", "weights"}
+    _IX = {"genes"}
+    _JX = {"samples"}
+    _I = {"AveLogCPM", "trended.dispersion", "tagwise.dispersion", "prior.n", "prior.df"}
 
     def __getitem__(self, key):
         if isinstance(key, str):
@@ -194,8 +198,12 @@ class DGEList(_EdgeRBase):
                 out[k] = _subset_matrix_or_df(out[k], i_idx)
 
         # Drop empty group levels after column subsetting
-        if j_idx is not None and 'samples' in out and 'group' in out['samples'].columns:
-            out['samples']['group'] = out['samples']['group'].cat.remove_unused_categories() if hasattr(out['samples']['group'], 'cat') else out['samples']['group']
+        if j_idx is not None and "samples" in out and "group" in out["samples"].columns:
+            out["samples"]["group"] = (
+                out["samples"]["group"].cat.remove_unused_categories()
+                if hasattr(out["samples"]["group"], "cat")
+                else out["samples"]["group"]
+            )
 
         return out
 
@@ -204,14 +212,14 @@ class DGEList(_EdgeRBase):
 
     @property
     def nrow(self):
-        if 'counts' in self:
-            return self['counts'].shape[0]
+        if "counts" in self:
+            return self["counts"].shape[0]
         return 0
 
     @property
     def ncol(self):
-        if 'counts' in self:
-            return self['counts'].shape[1]
+        if "counts" in self:
+            return self["counts"].shape[1]
         return 0
 
     def __len__(self):
@@ -225,11 +233,7 @@ class DGEList(_EdgeRBase):
 
     def to_dataframe(self):
         """Convert counts to DataFrame."""
-        return pd.DataFrame(
-            self['counts'],
-            index=_get_rownames(self),
-            columns=_get_colnames(self)
-        )
+        return pd.DataFrame(self["counts"], index=_get_rownames(self), columns=_get_colnames(self))
 
 
 class DGEExact(_EdgeRBase):
@@ -259,27 +263,27 @@ class DGEExact(_EdgeRBase):
             raise IndexError("Subsetting columns not allowed for DGEExact objects.")
 
         out = self._copy()
-        rownames = list(out['table'].index) if out.get('table') is not None else None
+        rownames = list(out["table"].index) if out.get("table") is not None else None
         i_idx = _resolve_index(i, rownames)
 
-        if 'table' in out and out['table'] is not None:
-            out['table'] = _subset_matrix_or_df(out['table'], i_idx)
-        if 'genes' in out and out['genes'] is not None:
-            out['genes'] = _subset_matrix_or_df(out['genes'], i_idx)
+        if "table" in out and out["table"] is not None:
+            out["table"] = _subset_matrix_or_df(out["table"], i_idx)
+        if "genes" in out and out["genes"] is not None:
+            out["genes"] = _subset_matrix_or_df(out["genes"], i_idx)
         return out
 
     def __repr__(self):
         out = ""
-        if 'comparison' in self and self['comparison'] is not None:
+        if "comparison" in self and self["comparison"] is not None:
             out += f"Comparison of groups: {self['comparison'][1]}-{self['comparison'][0]}\n"
-        if 'table' in self and self['table'] is not None:
-            out += str(self['table'])
+        if "table" in self and self["table"] is not None:
+            out += str(self["table"])
         return out
 
     @property
     def shape(self):
-        if 'table' in self:
-            return self['table'].shape
+        if "table" in self:
+            return self["table"].shape
         return None
 
 
@@ -303,11 +307,34 @@ class DGEGLM(_EdgeRBase):
     AveLogCPM : ndarray or None
     """
 
-    _IX = {'counts', 'offset', 'weights', 'genes', 'coefficients', 'fitted.values',
-           'unshrunk.coefficients', 'leverage', 'unit.deviance.adj', 'unit.df.adj'}
-    _I = {'AveLogCPM', 'dispersion', 'prior.n', 'prior.df', 's2.post', 's2.prior',
-          'df.prior', 'df.residual', 'df.residual.zeros', 'df.residual.adj',
-          'deviance', 'deviance.adj', 'iter', 'failed'}
+    _IX = {
+        "counts",
+        "offset",
+        "weights",
+        "genes",
+        "coefficients",
+        "fitted.values",
+        "unshrunk.coefficients",
+        "leverage",
+        "unit.deviance.adj",
+        "unit.df.adj",
+    }
+    _I = {
+        "AveLogCPM",
+        "dispersion",
+        "prior.n",
+        "prior.df",
+        "s2.post",
+        "s2.prior",
+        "df.prior",
+        "df.residual",
+        "df.residual.zeros",
+        "df.residual.adj",
+        "deviance",
+        "deviance.adj",
+        "iter",
+        "failed",
+    }
 
     def __getitem__(self, key):
         if isinstance(key, str):
@@ -337,16 +364,16 @@ class DGEGLM(_EdgeRBase):
 
     @property
     def nrow(self):
-        if 'coefficients' in self:
-            return self['coefficients'].shape[0]
-        if 'counts' in self:
-            return self['counts'].shape[0]
+        if "coefficients" in self:
+            return self["coefficients"].shape[0]
+        if "counts" in self:
+            return self["counts"].shape[0]
         return 0
 
     @property
     def ncol(self):
-        if 'counts' in self:
-            return self['counts'].shape[1]
+        if "counts" in self:
+            return self["counts"].shape[1]
         return 0
 
 
@@ -362,11 +389,37 @@ class DGELRT(_EdgeRBase):
     coefficients, fitted.values, etc. : inherited from DGEGLM fit.
     """
 
-    _IX = {'counts', 'offset', 'weights', 'genes', 'coefficients', 'fitted.values',
-           'table', 'unshrunk.coefficients', 'leverage', 'unit.deviance.adj', 'unit.df.adj'}
-    _I = {'AveLogCPM', 'dispersion', 'prior.n', 'prior.df', 's2.post', 's2.prior',
-          'df.prior', 'df.residual', 'df.residual.zeros', 'df.residual.adj',
-          'deviance', 'deviance.adj', 'iter', 'failed', 'df.test', 'df.total'}
+    _IX = {
+        "counts",
+        "offset",
+        "weights",
+        "genes",
+        "coefficients",
+        "fitted.values",
+        "table",
+        "unshrunk.coefficients",
+        "leverage",
+        "unit.deviance.adj",
+        "unit.df.adj",
+    }
+    _I = {
+        "AveLogCPM",
+        "dispersion",
+        "prior.n",
+        "prior.df",
+        "s2.post",
+        "s2.prior",
+        "df.prior",
+        "df.residual",
+        "df.residual.zeros",
+        "df.residual.adj",
+        "deviance",
+        "deviance.adj",
+        "iter",
+        "failed",
+        "df.test",
+        "df.total",
+    }
 
     def __getitem__(self, key):
         if isinstance(key, str):
@@ -384,8 +437,8 @@ class DGELRT(_EdgeRBase):
 
         out = self._copy()
         rownames = _get_rownames(self)
-        if rownames is None and 'table' in self:
-            rownames = list(self['table'].index)
+        if rownames is None and "table" in self:
+            rownames = list(self["table"].index)
         i_idx = _resolve_index(i, rownames)
 
         for k in self._IX:
@@ -398,18 +451,18 @@ class DGELRT(_EdgeRBase):
 
     def __repr__(self):
         out = ""
-        if 'comparison' in self:
+        if "comparison" in self:
             out += f"Coefficient: {self['comparison']}\n"
-        if 'table' in self:
-            out += str(self['table'])
+        if "table" in self:
+            out += str(self["table"])
         return out
 
     @property
     def shape(self):
-        if 'table' in self:
-            return self['table'].shape
-        if 'coefficients' in self:
-            return self['coefficients'].shape
+        if "table" in self:
+            return self["table"].shape
+        if "coefficients" in self:
+            return self["coefficients"].shape
         return None
 
 
@@ -438,27 +491,27 @@ class TopTags(_EdgeRBase):
             raise IndexError("Two subscripts required")
 
         out = self._copy()
-        if 'table' in out:
+        if "table" in out:
             if i is not None or j is not None:
-                out['table'] = _subset_matrix_or_df(out['table'], i, j)
+                out["table"] = _subset_matrix_or_df(out["table"], i, j)
         return out
 
     def __repr__(self):
         out = ""
-        if self.get('test') == 'exact':
-            comp = self.get('comparison', [])
+        if self.get("test") == "exact":
+            comp = self.get("comparison", [])
             if len(comp) >= 2:
                 out += f"Comparison of groups: {comp[1]}-{comp[0]}\n"
         else:
             out += f"Coefficient: {self.get('comparison', '')}\n"
-        if 'table' in self:
-            out += str(self['table'])
+        if "table" in self:
+            out += str(self["table"])
         return out
 
     @property
     def shape(self):
-        if 'table' in self:
-            return self['table'].shape
+        if "table" in self:
+            return self["table"].shape
         return None
 
 
@@ -473,19 +526,19 @@ def cbind_dgelist(*objects):
     out = objects[0]._copy()
     for obj in objects[1:]:
         # Check gene compatibility
-        if 'genes' in out and out['genes'] is not None:
-            if not out['genes'].equals(obj.get('genes')):
+        if "genes" in out and out["genes"] is not None:
+            if not out["genes"].equals(obj.get("genes")):
                 raise ValueError("DGEList objects have different genes")
 
-        out['counts'] = np.hstack([out['counts'], obj['counts']])
-        out['samples'] = pd.concat([out['samples'], obj['samples']], ignore_index=False)
+        out["counts"] = np.hstack([out["counts"], obj["counts"]])
+        out["samples"] = pd.concat([out["samples"], obj["samples"]], ignore_index=False)
 
-        for key in ['offset', 'weights', 'pseudo.counts']:
+        for key in ["offset", "weights", "pseudo.counts"]:
             if key in out and out[key] is not None and key in obj and obj[key] is not None:
                 out[key] = np.hstack([out[key], obj[key]])
 
     # Clear dispersions
-    for key in ['common.dispersion', 'trended.dispersion', 'tagwise.dispersion']:
+    for key in ["common.dispersion", "trended.dispersion", "tagwise.dispersion"]:
         if key in out:
             del out[key]
 
@@ -502,15 +555,20 @@ def rbind_dgelist(*objects):
 
     out = objects[0]._copy()
     for obj in objects[1:]:
-        out['counts'] = np.vstack([out['counts'], obj['counts']])
-        if 'genes' in out and out['genes'] is not None and 'genes' in obj and obj['genes'] is not None:
-            out['genes'] = pd.concat([out['genes'], obj['genes']], ignore_index=False)
-        for key in ['offset', 'weights', 'pseudo.counts']:
+        out["counts"] = np.vstack([out["counts"], obj["counts"]])
+        if (
+            "genes" in out
+            and out["genes"] is not None
+            and "genes" in obj
+            and obj["genes"] is not None
+        ):
+            out["genes"] = pd.concat([out["genes"], obj["genes"]], ignore_index=False)
+        for key in ["offset", "weights", "pseudo.counts"]:
             if key in out and out[key] is not None and key in obj and obj[key] is not None:
                 out[key] = np.vstack([out[key], obj[key]])
 
     # Clear dispersions
-    for key in ['common.dispersion', 'trended.dispersion', 'tagwise.dispersion', 'AveLogCPM']:
+    for key in ["common.dispersion", "trended.dispersion", "tagwise.dispersion", "AveLogCPM"]:
         if key in out:
             del out[key]
 

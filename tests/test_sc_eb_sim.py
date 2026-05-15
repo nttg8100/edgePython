@@ -23,11 +23,11 @@ def _simulate_phi(ngenes, df_resid, trend, rng):
 def _fit_from_phi_hat(phi_hat, n_cells, n_predictors, n_samples):
     dispersion = np.where(phi_hat > 0, 1.0 / phi_hat, np.inf)
     return {
-        'dispersion': dispersion,
-        'convergence': np.ones_like(phi_hat, dtype=np.int32),
-        'ncells': int(n_cells),
-        'nsamples': int(n_samples),
-        'design': np.zeros((int(n_cells), int(n_predictors)), dtype=np.float64),
+        "dispersion": dispersion,
+        "convergence": np.ones_like(phi_hat, dtype=np.int32),
+        "ncells": int(n_cells),
+        "nsamples": int(n_samples),
+        "design": np.zeros((int(n_cells), int(n_predictors)), dtype=np.float64),
     }
 
 
@@ -43,8 +43,8 @@ def test_shrink_sc_disp_improves_mse():
     fit = _fit_from_phi_hat(phi_hat, n_cells, n_predictors, n_samples)
     fit = ep.shrink_sc_disp(fit, covariate=cov, robust=True)
 
-    mse_raw = np.mean((fit['phi_raw'] - phi_true) ** 2)
-    mse_post = np.mean((fit['phi_post'] - phi_true) ** 2)
+    mse_raw = np.mean((fit["phi_raw"] - phi_true) ** 2)
+    mse_post = np.mean((fit["phi_post"] - phi_true) ** 2)
 
     assert mse_post < mse_raw * 0.9, (
         f"Shrinkage failed to improve MSE: post={mse_post:.6g}, raw={mse_raw:.6g}"

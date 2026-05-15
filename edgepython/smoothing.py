@@ -129,7 +129,9 @@ def _locfit_degree0_grid_kernel(x_eval, x_sorted, y_sorted, w_sorted, n, ncols, 
     m = len(x_eval)
     for i in prange(m):
         idx = np.int64(i)
-        _locfit_degree0_grid_point(idx, x_eval, x_sorted, y_sorted, w_sorted, n, ncols, nn, result_grid)
+        _locfit_degree0_grid_point(
+            idx, x_eval, x_sorted, y_sorted, w_sorted, n, ncols, nn, result_grid
+        )
 
 
 @njit(cache=True)
@@ -296,7 +298,9 @@ def _locfit_degree1_grid_kernel(x_eval, x_sorted, y_sorted, w_sorted, n, ncols, 
     m = len(x_eval)
     for i in prange(m):
         idx = np.int64(i)
-        _locfit_degree1_grid_point(idx, x_eval, x_sorted, y_sorted, w_sorted, n, ncols, nn, result_grid)
+        _locfit_degree1_grid_point(
+            idx, x_eval, x_sorted, y_sorted, w_sorted, n, ncols, nn, result_grid
+        )
 
 
 def locfit_by_col(y, x=None, weights=1, span=0.5, degree=0):
@@ -332,9 +336,13 @@ def locfit_by_col(y, x=None, weights=1, span=0.5, degree=0):
         x_eval = np.linspace(x_sorted[0], x_sorted[-1], M)
         result_grid = np.zeros((M, ncols), dtype=np.float64)
         if degree == 0:
-            _locfit_degree0_grid_kernel(x_eval, x_sorted, y_sorted, w_sorted, n, ncols, nn, result_grid)
+            _locfit_degree0_grid_kernel(
+                x_eval, x_sorted, y_sorted, w_sorted, n, ncols, nn, result_grid
+            )
         else:
-            _locfit_degree1_grid_kernel(x_eval, x_sorted, y_sorted, w_sorted, n, ncols, nn, result_grid)
+            _locfit_degree1_grid_kernel(
+                x_eval, x_sorted, y_sorted, w_sorted, n, ncols, nn, result_grid
+            )
         # Interpolate grid results to all data points
         result_sorted = np.empty((n, ncols), dtype=np.float64)
         for j in range(ncols):
@@ -458,17 +466,11 @@ def loess_by_col(y, x=None, span=0.5):
 
     nspan = min(int(span * n), n)
     if nspan <= 1:
-        return {
-            'fitted_values': y.copy(),
-            'leverages': np.ones(n)
-        }
+        return {"fitted_values": y.copy(), "leverages": np.ones(n)}
 
     fitted = np.zeros((n, ncols), dtype=np.float64)
     leverages = np.zeros(n, dtype=np.float64)
 
     _loess_kernel(x, y, n, ncols, nspan, fitted, leverages)
 
-    return {
-        'fitted_values': fitted,
-        'leverages': leverages
-    }
+    return {"fitted_values": fitted, "leverages": leverages}

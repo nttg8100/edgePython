@@ -163,10 +163,12 @@ class CompressedMatrix:
                 result.repeat_col = self.repeat_col
 
                 # Drop to vector if single row or column
-                i_scalar = (isinstance(i, (int, np.integer)) or
-                            (hasattr(i, '__len__') and len(i) == 1))
-                j_scalar = (isinstance(j, (int, np.integer)) or
-                            (hasattr(j, '__len__') and len(j) == 1))
+                i_scalar = isinstance(i, (int, np.integer)) or (
+                    hasattr(i, "__len__") and len(i) == 1
+                )
+                j_scalar = isinstance(j, (int, np.integer)) or (
+                    hasattr(j, "__len__") and len(j) == 1
+                )
                 if i_scalar or j_scalar:
                     return result.as_matrix().ravel()
                 return result
@@ -192,7 +194,9 @@ class CompressedMatrix:
     def _binary_op(self, other, op):
         if isinstance(other, CompressedMatrix):
             if self._dims != other._dims:
-                raise ValueError("CompressedMatrix dimensions should be equal for binary operations")
+                raise ValueError(
+                    "CompressedMatrix dimensions should be equal for binary operations"
+                )
             row_rep = self.repeat_row and other.repeat_row
             col_rep = self.repeat_col and other.repeat_col
             if row_rep or col_rep:
@@ -248,9 +252,11 @@ class CompressedMatrix:
         return result
 
     def __repr__(self):
-        return (f"CompressedMatrix(shape={self._dims}, "
-                f"repeat_row={self.repeat_row}, repeat_col={self.repeat_col}, "
-                f"stored_shape={self._data.shape})")
+        return (
+            f"CompressedMatrix(shape={self._dims}, "
+            f"repeat_row={self.repeat_row}, repeat_col={self.repeat_col}, "
+            f"stored_shape={self._data.shape})"
+        )
 
     @staticmethod
     def rbind(*matrices):
@@ -266,8 +272,12 @@ class CompressedMatrix:
             collected = []
             for m in matrices:
                 if m.ncol != all_nc:
-                    raise ValueError("cannot combine CompressedMatrix objects with different number of columns")
-                collected.append(np.tile(m._data.ravel(), max(1, m.nrow // max(1, m._data.shape[0])))[:m.nrow])
+                    raise ValueError(
+                        "cannot combine CompressedMatrix objects with different number of columns"
+                    )
+                collected.append(
+                    np.tile(m._data.ravel(), max(1, m.nrow // max(1, m._data.shape[0])))[: m.nrow]
+                )
             return CompressedMatrix(np.concatenate(collected), dims=(all_nr, all_nc), byrow=False)
 
         if all(row_rep):
@@ -298,8 +308,12 @@ class CompressedMatrix:
             collected = []
             for m in matrices:
                 if m.nrow != all_nr:
-                    raise ValueError("cannot combine CompressedMatrix objects with different number of rows")
-                collected.append(np.tile(m._data.ravel(), max(1, m.ncol // max(1, m._data.shape[1])))[:m.ncol])
+                    raise ValueError(
+                        "cannot combine CompressedMatrix objects with different number of rows"
+                    )
+                collected.append(
+                    np.tile(m._data.ravel(), max(1, m.ncol // max(1, m._data.shape[1])))[: m.ncol]
+                )
             return CompressedMatrix(np.concatenate(collected), dims=(all_nr, all_nc), byrow=True)
 
         if all(col_rep):
@@ -324,7 +338,9 @@ def compress_offsets(y, offset=None, lib_size=None):
     """
     if isinstance(offset, CompressedMatrix):
         return offset
-    dims = y.shape if hasattr(y, 'shape') else (y._dims if isinstance(y, CompressedMatrix) else None)
+    dims = (
+        y.shape if hasattr(y, "shape") else (y._dims if isinstance(y, CompressedMatrix) else None)
+    )
     if offset is None:
         if lib_size is None:
             if isinstance(y, np.ndarray):
@@ -345,7 +361,9 @@ def compress_weights(y, weights=None):
     """
     if isinstance(weights, CompressedMatrix):
         return weights
-    dims = y.shape if hasattr(y, 'shape') else (y._dims if isinstance(y, CompressedMatrix) else None)
+    dims = (
+        y.shape if hasattr(y, "shape") else (y._dims if isinstance(y, CompressedMatrix) else None)
+    )
     if weights is None:
         weights = 1.0
     weights = np.asarray(weights, dtype=np.float64)
@@ -363,7 +381,9 @@ def compress_prior(y, prior_count):
     """
     if isinstance(prior_count, CompressedMatrix):
         return prior_count
-    dims = y.shape if hasattr(y, 'shape') else (y._dims if isinstance(y, CompressedMatrix) else None)
+    dims = (
+        y.shape if hasattr(y, "shape") else (y._dims if isinstance(y, CompressedMatrix) else None)
+    )
     prior_count = np.asarray(prior_count, dtype=np.float64)
     if np.any(np.isnan(prior_count)):
         raise ValueError("NA prior counts not allowed")
@@ -379,7 +399,9 @@ def compress_dispersions(y, dispersion):
     """
     if isinstance(dispersion, CompressedMatrix):
         return dispersion
-    dims = y.shape if hasattr(y, 'shape') else (y._dims if isinstance(y, CompressedMatrix) else None)
+    dims = (
+        y.shape if hasattr(y, "shape") else (y._dims if isinstance(y, CompressedMatrix) else None)
+    )
     dispersion = np.asarray(dispersion, dtype=np.float64)
     if np.any(np.isnan(dispersion)):
         raise ValueError("NA dispersions not allowed")

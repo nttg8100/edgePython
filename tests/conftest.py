@@ -48,6 +48,7 @@ def design6():
 def dgelist(small_counts, group6):
     """DGEList from small_counts with group factor."""
     import edgepython as ep
+
     return ep.make_dgelist(small_counts, group=group6)
 
 
@@ -55,6 +56,7 @@ def dgelist(small_counts, group6):
 def dgelist_disp(dgelist, design6):
     """DGEList with estimated dispersions."""
     import edgepython as ep
+
     return ep.estimate_disp(dgelist, design6)
 
 
@@ -62,7 +64,7 @@ def dgelist_disp(dgelist, design6):
 def gene_sets():
     """Dict of gene set indices for 100-gene data."""
     return {
-        'Set1': list(range(10)),
-        'Set2': list(range(50, 70)),
-        'Set3': list(range(20, 30)),
+        "Set1": list(range(10)),
+        "Set2": list(range(50, 70)),
+        "Set3": list(range(20, 30)),
     }

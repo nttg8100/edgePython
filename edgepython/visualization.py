@@ -9,9 +9,19 @@ import numpy as np
 import warnings
 
 
-def plot_md(obj, column=None, coef=None, xlab='Average log CPM',
-            ylab='log-fold-change', main=None, status=None,
-            values=None, col=None, hl_col=None, **kwargs):
+def plot_md(
+    obj,
+    column=None,
+    coef=None,
+    xlab="Average log CPM",
+    ylab="log-fold-change",
+    main=None,
+    status=None,
+    values=None,
+    col=None,
+    hl_col=None,
+    **kwargs,
+):
     """Mean-difference plot (MD plot / MA plot).
 
     Port of edgeR's plotMD.
@@ -35,20 +45,26 @@ def plot_md(obj, column=None, coef=None, xlab='Average log CPM',
         column = coef
 
     # Extract x (logCPM) and y (logFC) values
-    if isinstance(obj, dict) and 'table' in obj:
-        tab = obj['table']
-        x = tab['logCPM'].values if 'logCPM' in tab.columns else tab.get('logCPM', np.zeros(len(tab)))
-        y = tab['logFC'].values if 'logFC' in tab.columns else tab.iloc[:, 0].values
-    elif isinstance(obj, dict) and 'coefficients' in obj:
+    if isinstance(obj, dict) and "table" in obj:
+        tab = obj["table"]
+        x = (
+            tab["logCPM"].values
+            if "logCPM" in tab.columns
+            else tab.get("logCPM", np.zeros(len(tab)))
+        )
+        y = tab["logFC"].values if "logFC" in tab.columns else tab.iloc[:, 0].values
+    elif isinstance(obj, dict) and "coefficients" in obj:
         from .expression import ave_log_cpm
-        x = obj.get('AveLogCPM')
+
+        x = obj.get("AveLogCPM")
         if x is None:
             x = ave_log_cpm(obj)
         if column is None:
             column = 0
-        y = obj['coefficients'][:, column] / np.log(2)
-    elif isinstance(obj, dict) and 'counts' in obj:
+        y = obj["coefficients"][:, column] / np.log(2)
+    elif isinstance(obj, dict) and "counts" in obj:
         from .expression import ave_log_cpm, cpm
+
         x = ave_log_cpm(obj)
         cpm_vals = cpm(obj, log=True)
         if column is None:
@@ -62,16 +78,20 @@ def plot_md(obj, column=None, coef=None, xlab='Average log CPM',
     if status is not None:
         status = np.asarray(status)
         unique_status = np.unique(status)
-        colors = ['grey', 'red', 'blue']
+        colors = ["grey", "red", "blue"]
         for i, s in enumerate(unique_status):
             mask = status == s
-            c = colors[i % len(colors)] if col is None else (col[i] if isinstance(col, list) else col)
+            c = (
+                colors[i % len(colors)]
+                if col is None
+                else (col[i] if isinstance(col, list) else col)
+            )
             ax.scatter(x[mask], y[mask], s=2, alpha=0.5, c=c, label=str(s))
         ax.legend()
     else:
-        ax.scatter(x, y, s=2, alpha=0.5, c='black')
+        ax.scatter(x, y, s=2, alpha=0.5, c="black")
 
-    ax.axhline(y=0, color='red', linestyle='--', linewidth=0.5)
+    ax.axhline(y=0, color="red", linestyle="--", linewidth=0.5)
     ax.set_xlabel(xlab)
     ax.set_ylabel(ylab)
     if main:
@@ -81,9 +101,17 @@ def plot_md(obj, column=None, coef=None, xlab='Average log CPM',
     return fig, ax
 
 
-def plot_bcv(y, xlab='Average log CPM', ylab='Biological coefficient of variation',
-             pch=16, cex=0.2, col_common='red', col_trend='blue',
-             col_tagwise='black', **kwargs):
+def plot_bcv(
+    y,
+    xlab="Average log CPM",
+    ylab="Biological coefficient of variation",
+    pch=16,
+    cex=0.2,
+    col_common="red",
+    col_trend="blue",
+    col_tagwise="black",
+    **kwargs,
+):
     """Plot biological coefficient of variation.
 
     Port of edgeR's plotBCV.
@@ -96,27 +124,27 @@ def plot_bcv(y, xlab='Average log CPM', ylab='Biological coefficient of variatio
     import matplotlib.pyplot as plt
     from .expression import ave_log_cpm
 
-    alc = y.get('AveLogCPM')
+    alc = y.get("AveLogCPM")
     if alc is None:
         alc = ave_log_cpm(y)
 
     fig, ax = plt.subplots(figsize=(8, 6))
 
     # Tagwise dispersions
-    if y.get('tagwise.dispersion') is not None:
-        bcv_tagwise = np.sqrt(y['tagwise.dispersion'])
-        ax.scatter(alc, bcv_tagwise, s=cex * 10, alpha=0.3, c=col_tagwise, label='Tagwise')
+    if y.get("tagwise.dispersion") is not None:
+        bcv_tagwise = np.sqrt(y["tagwise.dispersion"])
+        ax.scatter(alc, bcv_tagwise, s=cex * 10, alpha=0.3, c=col_tagwise, label="Tagwise")
 
     # Trended dispersion
-    if y.get('trended.dispersion') is not None:
-        bcv_trend = np.sqrt(y['trended.dispersion'])
+    if y.get("trended.dispersion") is not None:
+        bcv_trend = np.sqrt(y["trended.dispersion"])
         o = np.argsort(alc)
-        ax.plot(alc[o], bcv_trend[o], c=col_trend, linewidth=2, label='Trend')
+        ax.plot(alc[o], bcv_trend[o], c=col_trend, linewidth=2, label="Trend")
 
     # Common dispersion
-    if y.get('common.dispersion') is not None:
-        bcv_common = np.sqrt(y['common.dispersion'])
-        ax.axhline(y=bcv_common, color=col_common, linewidth=2, label='Common')
+    if y.get("common.dispersion") is not None:
+        bcv_common = np.sqrt(y["common.dispersion"])
+        ax.axhline(y=bcv_common, color=col_common, linewidth=2, label="Common")
 
     ax.set_xlabel(xlab)
     ax.set_ylabel(ylab)
@@ -126,9 +154,19 @@ def plot_bcv(y, xlab='Average log CPM', ylab='Biological coefficient of variatio
     return fig, ax
 
 
-def plot_mds(y, top=500, labels=None, pch=None, cex=1, dim_plot=(1, 2),
-             gene_selection='pairwise', xlab=None, ylab=None, main=None,
-             **kwargs):
+def plot_mds(
+    y,
+    top=500,
+    labels=None,
+    pch=None,
+    cex=1,
+    dim_plot=(1, 2),
+    gene_selection="pairwise",
+    xlab=None,
+    ylab=None,
+    main=None,
+    **kwargs,
+):
     """Multi-dimensional scaling plot.
 
     Port of edgeR's plotMDS.
@@ -149,10 +187,10 @@ def plot_mds(y, top=500, labels=None, pch=None, cex=1, dim_plot=(1, 2),
     import matplotlib.pyplot as plt
     from .expression import cpm
 
-    if isinstance(y, dict) and 'counts' in y:
-        counts = y['counts']
+    if isinstance(y, dict) and "counts" in y:
+        counts = y["counts"]
         if labels is None:
-            labels = y['samples'].index.tolist() if hasattr(y['samples'], 'index') else None
+            labels = y["samples"].index.tolist() if hasattr(y["samples"], "index") else None
     else:
         counts = np.asarray(y, dtype=np.float64)
 
@@ -162,11 +200,11 @@ def plot_mds(y, top=500, labels=None, pch=None, cex=1, dim_plot=(1, 2),
 
     nsamples = counts.shape[1]
     if labels is None:
-        labels = [f'S{i+1}' for i in range(nsamples)]
+        labels = [f"S{i + 1}" for i in range(nsamples)]
 
     # Select top variable genes
     var = np.var(log_cpm, axis=1)
-    top_idx = np.argsort(var)[::-1][:min(top, len(var))]
+    top_idx = np.argsort(var)[::-1][: min(top, len(var))]
     log_cpm_top = log_cpm[top_idx]
 
     # Pairwise distances
@@ -179,7 +217,7 @@ def plot_mds(y, top=500, labels=None, pch=None, cex=1, dim_plot=(1, 2),
 
     # Classical MDS
     H = np.eye(nsamples) - np.ones((nsamples, nsamples)) / nsamples
-    B = -0.5 * H @ (dist_mat ** 2) @ H
+    B = -0.5 * H @ (dist_mat**2) @ H
     eigvals, eigvecs = np.linalg.eigh(B)
     idx = np.argsort(eigvals)[::-1]
     eigvals = eigvals[idx]
@@ -200,13 +238,14 @@ def plot_mds(y, top=500, labels=None, pch=None, cex=1, dim_plot=(1, 2),
     ax.scatter(x_coord, y_coord, s=50)
 
     for i, label in enumerate(labels):
-        ax.annotate(label, (x_coord[i], y_coord[i]),
-                    textcoords="offset points", xytext=(5, 5), fontsize=8)
+        ax.annotate(
+            label, (x_coord[i], y_coord[i]), textcoords="offset points", xytext=(5, 5), fontsize=8
+        )
 
     if xlab is None:
-        xlab = f'Dimension {dim_plot[0]} ({var_exp1:.1f}%)'
+        xlab = f"Dimension {dim_plot[0]} ({var_exp1:.1f}%)"
     if ylab is None:
-        ylab = f'Dimension {dim_plot[1]} ({var_exp2:.1f}%)'
+        ylab = f"Dimension {dim_plot[1]} ({var_exp2:.1f}%)"
 
     ax.set_xlabel(xlab)
     ax.set_ylabel(ylab)
@@ -217,9 +256,17 @@ def plot_mds(y, top=500, labels=None, pch=None, cex=1, dim_plot=(1, 2),
     return fig, ax
 
 
-def plot_smear(obj, pair=None, de_tags=None, xlab='Average logCPM',
-               ylab='logFC', main='MA Plot', smooth_scatter=False,
-               lowess=False, **kwargs):
+def plot_smear(
+    obj,
+    pair=None,
+    de_tags=None,
+    xlab="Average logCPM",
+    ylab="logFC",
+    main="MA Plot",
+    smooth_scatter=False,
+    lowess=False,
+    **kwargs,
+):
     """Smear plot (MA plot for DGE).
 
     Port of edgeR's plotSmear.
@@ -235,21 +282,21 @@ def plot_smear(obj, pair=None, de_tags=None, xlab='Average logCPM',
     """
     import matplotlib.pyplot as plt
 
-    if isinstance(obj, dict) and 'table' in obj:
-        tab = obj['table']
-        x = tab['logCPM'].values
-        y_vals = tab['logFC'].values
+    if isinstance(obj, dict) and "table" in obj:
+        tab = obj["table"]
+        x = tab["logCPM"].values
+        y_vals = tab["logFC"].values
     else:
         raise ValueError("Object must have a 'table' attribute")
 
     fig, ax = plt.subplots(figsize=(8, 6))
-    ax.scatter(x, y_vals, s=2, alpha=0.3, c='black')
+    ax.scatter(x, y_vals, s=2, alpha=0.3, c="black")
 
     if de_tags is not None:
         de_tags = np.asarray(de_tags)
-        ax.scatter(x[de_tags], y_vals[de_tags], s=4, c='red', alpha=0.5)
+        ax.scatter(x[de_tags], y_vals[de_tags], s=4, c="red", alpha=0.5)
 
-    ax.axhline(y=0, color='blue', linestyle='--', linewidth=0.5)
+    ax.axhline(y=0, color="blue", linestyle="--", linewidth=0.5)
     ax.set_xlabel(xlab)
     ax.set_ylabel(ylab)
     ax.set_title(main)
@@ -258,10 +305,17 @@ def plot_smear(obj, pair=None, de_tags=None, xlab='Average logCPM',
     return fig, ax
 
 
-def plot_ql_disp(glmfit, xlab='Average Log2 CPM',
-                  ylab='Quarter-Root Mean Deviance',
-                  pch=16, cex=0.2, col_shrunk='red', col_trend='blue',
-                  col_raw='black', **kwargs):
+def plot_ql_disp(
+    glmfit,
+    xlab="Average Log2 CPM",
+    ylab="Quarter-Root Mean Deviance",
+    pch=16,
+    cex=0.2,
+    col_shrunk="red",
+    col_trend="blue",
+    col_raw="black",
+    **kwargs,
+):
     """Plot quasi-likelihood dispersions.
 
     Port of edgeR's plotQLDisp.
@@ -274,19 +328,19 @@ def plot_ql_disp(glmfit, xlab='Average Log2 CPM',
     import matplotlib.pyplot as plt
     from .expression import ave_log_cpm
 
-    if glmfit.get('s2.post') is None:
+    if glmfit.get("s2.post") is None:
         raise ValueError("need to run glm_ql_fit before plot_ql_disp")
 
-    A = glmfit.get('AveLogCPM')
+    A = glmfit.get("AveLogCPM")
     if A is None:
         A = ave_log_cpm(glmfit)
 
-    if glmfit.get('df.residual.zeros') is None:
-        df_residual = glmfit.get('df.residual.adj', glmfit['df.residual'])
-        deviance = glmfit.get('deviance.adj', glmfit['deviance'])
+    if glmfit.get("df.residual.zeros") is None:
+        df_residual = glmfit.get("df.residual.adj", glmfit["df.residual"])
+        deviance = glmfit.get("deviance.adj", glmfit["deviance"])
     else:
-        df_residual = glmfit['df.residual.zeros']
-        deviance = glmfit['deviance']
+        df_residual = glmfit["df.residual.zeros"]
+        deviance = glmfit["deviance"]
 
     df_residual = np.asarray(df_residual, dtype=np.float64)
     s2 = deviance / np.maximum(df_residual, 1e-8)
@@ -295,19 +349,25 @@ def plot_ql_disp(glmfit, xlab='Average Log2 CPM',
     fig, ax = plt.subplots(figsize=(8, 6))
 
     # Raw
-    ax.scatter(A, s2 ** 0.25, s=cex * 10, alpha=0.3, c=col_raw, label='Raw')
+    ax.scatter(A, s2**0.25, s=cex * 10, alpha=0.3, c=col_raw, label="Raw")
 
     # Squeezed
-    ax.scatter(A, np.asarray(glmfit['s2.post']) ** 0.25, s=cex * 10,
-               alpha=0.3, c=col_shrunk, label='Squeezed')
+    ax.scatter(
+        A,
+        np.asarray(glmfit["s2.post"]) ** 0.25,
+        s=cex * 10,
+        alpha=0.3,
+        c=col_shrunk,
+        label="Squeezed",
+    )
 
     # Trend
-    s2_prior = np.atleast_1d(glmfit['s2.prior'])
+    s2_prior = np.atleast_1d(glmfit["s2.prior"])
     if len(s2_prior) == 1:
-        ax.axhline(y=s2_prior[0] ** 0.25, color=col_trend, linewidth=2, label='Trend')
+        ax.axhline(y=s2_prior[0] ** 0.25, color=col_trend, linewidth=2, label="Trend")
     else:
         o = np.argsort(A)
-        ax.plot(A[o], s2_prior[o] ** 0.25, c=col_trend, linewidth=2, label='Trend')
+        ax.plot(A[o], s2_prior[o] ** 0.25, c=col_trend, linewidth=2, label="Trend")
 
     ax.set_xlabel(xlab)
     ax.set_ylabel(ylab)
@@ -317,8 +377,17 @@ def plot_ql_disp(glmfit, xlab='Average Log2 CPM',
     return fig, ax
 
 
-def ma_plot(x, y, logFC=None, de_tags=None, smooth_scatter=False,
-            xlab='A', ylab='M', main='MA Plot', **kwargs):
+def ma_plot(
+    x,
+    y,
+    logFC=None,
+    de_tags=None,
+    smooth_scatter=False,
+    xlab="A",
+    ylab="M",
+    main="MA Plot",
+    **kwargs,
+):
     """Simple MA plot.
 
     Parameters
@@ -331,13 +400,13 @@ def ma_plot(x, y, logFC=None, de_tags=None, smooth_scatter=False,
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(figsize=(8, 6))
-    ax.scatter(x, y, s=2, alpha=0.3, c='black')
+    ax.scatter(x, y, s=2, alpha=0.3, c="black")
 
     if de_tags is not None:
         de_tags = np.asarray(de_tags)
-        ax.scatter(x[de_tags], y[de_tags], s=4, c='red', alpha=0.5)
+        ax.scatter(x[de_tags], y[de_tags], s=4, c="red", alpha=0.5)
 
-    ax.axhline(y=0, color='blue', linestyle='--', linewidth=0.5)
+    ax.axhline(y=0, color="blue", linestyle="--", linewidth=0.5)
     ax.set_xlabel(xlab)
     ax.set_ylabel(ylab)
     ax.set_title(main)
@@ -346,8 +415,7 @@ def ma_plot(x, y, logFC=None, de_tags=None, smooth_scatter=False,
     return fig, ax
 
 
-def gof(glmfit, pcutoff=0.1, adjust='holm', plot=True, main='Goodness of Fit',
-        **kwargs):
+def gof(glmfit, pcutoff=0.1, adjust="holm", plot=True, main="Goodness of Fit", **kwargs):
     """Goodness of fit test for each gene.
 
     Port of edgeR's gof.
@@ -370,14 +438,14 @@ def gof(glmfit, pcutoff=0.1, adjust='holm', plot=True, main='Goodness of Fit',
     from scipy.stats import chi2
     from statsmodels.stats.multitest import multipletests
 
-    deviance = glmfit['deviance']
-    df = glmfit['df.residual']
+    deviance = glmfit["deviance"]
+    df = glmfit["df.residual"]
 
     df = np.asarray(df, dtype=np.float64)
     gof_pvalues = chi2.sf(deviance, df)
 
     # Adjust p-values
-    method_map = {'holm': 'holm', 'BH': 'fdr_bh', 'bonferroni': 'bonferroni'}
+    method_map = {"holm": "holm", "BH": "fdr_bh", "bonferroni": "bonferroni"}
     sm_method = method_map.get(adjust, adjust)
     _, adj_p, _, _ = multipletests(gof_pvalues, method=sm_method)
 
@@ -395,15 +463,10 @@ def gof(glmfit, pcutoff=0.1, adjust='holm', plot=True, main='Goodness of Fit',
 
         ax.scatter(theoretical, observed, s=2, alpha=0.5)
         max_val = max(np.max(theoretical), np.max(observed))
-        ax.plot([0, max_val], [0, max_val], 'r--', linewidth=0.5)
-        ax.set_xlabel('Theoretical quantiles')
-        ax.set_ylabel('Observed deviance')
+        ax.plot([0, max_val], [0, max_val], "r--", linewidth=0.5)
+        ax.set_xlabel("Theoretical quantiles")
+        ax.set_ylabel("Observed deviance")
         ax.set_title(main)
         plt.tight_layout()
 
-    return {
-        'gof.statistics': deviance,
-        'gof.pvalues': gof_pvalues,
-        'outlier': outlier,
-        'df': df
-    }
+    return {"gof.statistics": deviance, "gof.pvalues": gof_pvalues, "outlier": outlier, "df": df}

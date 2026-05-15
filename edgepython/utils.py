@@ -32,8 +32,10 @@ def expand_as_matrix(x, dim=None, byrow=True):
     if x.ndim <= 1:
         lx = len(x)
         if lx == dim[0] and lx == dim[1]:
-            return np.tile(x.reshape(-1, 1) if not byrow else x.reshape(1, -1),
-                           (1, dim[1]) if not byrow else (dim[0], 1))
+            return np.tile(
+                x.reshape(-1, 1) if not byrow else x.reshape(1, -1),
+                (1, dim[1]) if not byrow else (dim[0], 1),
+            )
         if lx == dim[1]:
             return np.tile(x.reshape(1, -1), (dim[0], 1))
         if lx == dim[0]:
@@ -93,7 +95,10 @@ def add_prior_count(y, lib_size=None, offset=None, prior_count=1):
         scaled_prior = prior_mat
 
     y_aug = y + scaled_prior
-    offset_aug = np.log(lib_size_eff + 2 * np.mean(scaled_prior, axis=0, keepdims=True) * np.mean(lib_size_eff) / lib_size_eff)
+    offset_aug = np.log(
+        lib_size_eff
+        + 2 * np.mean(scaled_prior, axis=0, keepdims=True) * np.mean(lib_size_eff) / lib_size_eff
+    )
 
     # Simplified: match edgeR C code behavior
     # offset_aug = log(lib_size + 2*prior_count_scaled)
@@ -101,11 +106,21 @@ def add_prior_count(y, lib_size=None, offset=None, prior_count=1):
         lib = np.exp(offset)
         pc = prior_count.ravel()[0] if prior_count.size == 1 else np.mean(prior_count)
         offset_aug = np.log(lib + 2.0 * pc * lib / np.mean(lib))
-        scaled_prior_simple = prior_count.ravel()[0] * lib / np.mean(lib) if prior_count.size == 1 else prior_count.reshape(-1, 1) * lib / np.mean(lib)
-        y_aug = y + (scaled_prior_simple if np.ndim(scaled_prior_simple) == 2 else np.tile(scaled_prior_simple, (y.shape[0], 1)))
-        offset_aug_mat = np.tile(offset_aug, (y.shape[0], 1)) if offset_aug.ndim == 1 else offset_aug
+        scaled_prior_simple = (
+            prior_count.ravel()[0] * lib / np.mean(lib)
+            if prior_count.size == 1
+            else prior_count.reshape(-1, 1) * lib / np.mean(lib)
+        )
+        y_aug = y + (
+            scaled_prior_simple
+            if np.ndim(scaled_prior_simple) == 2
+            else np.tile(scaled_prior_simple, (y.shape[0], 1))
+        )
+        offset_aug_mat = (
+            np.tile(offset_aug, (y.shape[0], 1)) if offset_aug.ndim == 1 else offset_aug
+        )
 
-    return {'y': y_aug, 'offset': offset_aug}
+    return {"y": y_aug, "offset": offset_aug}
 
 
 def moving_average_by_col(x, width=5, full_length=True):
@@ -134,14 +149,14 @@ def moving_average_by_col(x, width=5, full_length=True):
 
     cs = np.cumsum(x_pad, axis=0)
     n2 = cs.shape[0]
-    result = cs[width:n2] - cs[:n2 - width]
+    result = cs[width:n2] - cs[: n2 - width]
     n3 = result.shape[0]
 
     w = np.full(n3, width, dtype=np.float64)
     if full_length:
         if half1 > 1:
-            w[:half1 - 1] = width - np.arange(half1 - 1, 0, -1)
-        w[n3 - half2:] = width - np.arange(1, half2 + 1)
+            w[: half1 - 1] = width - np.arange(half1 - 1, 0, -1)
+        w[n3 - half2 :] = width - np.arange(1, half2 + 1)
 
     return result / w.reshape(-1, 1)
 
@@ -155,9 +170,15 @@ def pred_fc(y, design, prior_count=0.125, offset=None, dispersion=0, weights=Non
 
     out = add_prior_count(y, offset=offset, prior_count=prior_count)
     design = np.asarray(design, dtype=np.float64)
-    g = glm_fit(out['y'], design, offset=out['offset'], dispersion=dispersion,
-                prior_count=0, weights=weights)
-    return g['coefficients'] / np.log(2)
+    g = glm_fit(
+        out["y"],
+        design,
+        offset=out["offset"],
+        dispersion=dispersion,
+        prior_count=0,
+        weights=weights,
+    )
+    return g["coefficients"] / np.log(2)
 
 
 def good_turing(x, conf=1.96):
@@ -193,8 +214,7 @@ def good_turing(x, conf=1.96):
             n = counts
 
     if len(r) == 0:
-        return {'count': r, 'n': n, 'n0': n0, 'proportion': np.array([]),
-                'P0': 0.0}
+        return {"count": r, "n": n, "n0": n0, "proportion": np.array([]), "P0": 0.0}
 
     r = r.astype(np.int64)
     n = n.astype(np.int64)
@@ -251,7 +271,8 @@ def good_turing(x, conf=1.96):
             # Direct estimate
             x_direct = float(next_obs) * float(n[i + 1]) / float(n[i])
             if abs(x_direct - y) <= conf * x_direct * np.sqrt(
-                    1.0 / float(n[i + 1]) + 1.0 / float(n[i])):
+                1.0 / float(n[i + 1]) + 1.0 / float(n[i])
+            ):
                 indiff_vals_seen = True
             else:
                 out[i] = x_direct
@@ -265,13 +286,7 @@ def good_turing(x, conf=1.96):
     factor = (1.0 - P0) / bigNprime if bigNprime > 0 else 0.0
     proportion = out * factor
 
-    return {
-        'count': r,
-        'n': n,
-        'n0': n0,
-        'proportion': proportion,
-        'P0': P0
-    }
+    return {"count": r, "n": n, "n0": n0, "proportion": proportion, "P0": P0}
 
 
 def good_turing_proportions(counts):
@@ -286,14 +301,14 @@ def good_turing_proportions(counts):
     nlibs = z.shape[1]
     for i in range(nlibs):
         g = good_turing(counts[:, i] if counts.ndim == 2 else counts)
-        p0 = g['P0'] / g['n0'] if g['n0'] > 0 else 0
+        p0 = g["P0"] / g["n0"] if g["n0"] > 0 else 0
         zero = z[:, i] == 0
         z[zero, i] = p0
         nonzero = ~zero
         if np.any(nonzero):
-            m = np.searchsorted(g['count'], z[nonzero, i].astype(int))
-            m = np.clip(m, 0, len(g['proportion']) - 1)
-            z[nonzero, i] = g['proportion'][m]
+            m = np.searchsorted(g["count"], z[nonzero, i].astype(int))
+            m = np.clip(m, 0, len(g["proportion"]) - 1)
+            z[nonzero, i] = g["proportion"][m]
     return z
 
 
@@ -358,8 +373,8 @@ def cut_with_min_n(x, intervals=2, min_n=1):
     if np.any(isna):
         group = np.full(len(x), np.nan)
         out = cut_with_min_n(x[~isna], intervals=intervals, min_n=min_n)
-        group[~isna] = out['group']
-        return {'group': group, 'breaks': out['breaks']}
+        group[~isna] = out["group"]
+        return {"group": group, "breaks": out["breaks"]}
 
     intervals = int(intervals)
     min_n = int(min_n)
@@ -369,7 +384,7 @@ def cut_with_min_n(x, intervals=2, min_n=1):
         raise ValueError("too few observations: length(x) < intervals*min_n")
 
     if intervals == 1:
-        return {'group': np.ones(nx, dtype=int), 'breaks': None}
+        return {"group": np.ones(nx, dtype=int), "breaks": None}
 
     # Add jitter
     x_jit = x + 1e-10 * (np.random.uniform(size=nx) - 0.5)
@@ -379,7 +394,7 @@ def cut_with_min_n(x, intervals=2, min_n=1):
     z = np.digitize(x_jit, breaks[1:-1])
     n = np.bincount(z, minlength=intervals)
     if np.all(n >= min_n):
-        return {'group': z + 1, 'breaks': breaks}
+        return {"group": z + 1, "breaks": breaks}
 
     # Try quantile-based
     quantiles = np.quantile(x_jit, np.linspace(0, 1, intervals + 1))
@@ -391,7 +406,7 @@ def cut_with_min_n(x, intervals=2, min_n=1):
         z = np.digitize(x_jit, brk[1:-1])
         n = np.bincount(z, minlength=intervals)
         if np.all(n >= min_n):
-            return {'group': z + 1, 'breaks': brk}
+            return {"group": z + 1, "breaks": brk}
 
     # Fallback: order by x
     o = np.argsort(x_jit)
@@ -402,7 +417,7 @@ def cut_with_min_n(x, intervals=2, min_n=1):
         sizes[:nresid] += 1
     z = np.zeros(nx, dtype=int)
     z[o] = np.repeat(np.arange(1, intervals + 1), sizes)
-    return {'group': z, 'breaks': quantiles}
+    return {"group": z, "breaks": quantiles}
 
 
 def sum_tech_reps(x, ID=None):
@@ -410,7 +425,7 @@ def sum_tech_reps(x, ID=None):
 
     Port of edgeR's sumTechReps.
     """
-    if isinstance(x, dict) and 'counts' in x:
+    if isinstance(x, dict) and "counts" in x:
         # DGEList-like
         if ID is None:
             raise ValueError("No sample IDs")
@@ -420,28 +435,33 @@ def sum_tech_reps(x, ID=None):
             return x
 
         from copy import deepcopy
+
         y = deepcopy(x)
         # Sum counts
-        new_counts = np.zeros((x['counts'].shape[0], len(unique_ids)))
+        new_counts = np.zeros((x["counts"].shape[0], len(unique_ids)))
         for i, uid in enumerate(unique_ids):
             mask = ID == uid
-            new_counts[:, i] = x['counts'][:, mask].sum(axis=1)
-        y['counts'] = new_counts
+            new_counts[:, i] = x["counts"][:, mask].sum(axis=1)
+        y["counts"] = new_counts
 
         # Average lib.size and norm.factors
-        if 'samples' in y:
+        if "samples" in y:
             new_samples = pd.DataFrame(index=unique_ids)
-            for col in y['samples'].columns:
-                vals = y['samples'][col].values
-                if np.issubdtype(type(vals[0]), np.number) if not isinstance(vals[0], str) else False:
+            for col in y["samples"].columns:
+                vals = y["samples"][col].values
+                if (
+                    np.issubdtype(type(vals[0]), np.number)
+                    if not isinstance(vals[0], str)
+                    else False
+                ):
                     new_vals = np.array([vals[ID == uid].sum() for uid in unique_ids])
-                    if col == 'norm.factors':
+                    if col == "norm.factors":
                         counts_per_id = np.array([np.sum(ID == uid) for uid in unique_ids])
                         new_vals = new_vals / counts_per_id
                     new_samples[col] = new_vals
                 else:
                     new_samples[col] = [vals[ID == uid][0] for uid in unique_ids]
-            y['samples'] = new_samples
+            y["samples"] = new_samples
         return y
     else:
         # Matrix
@@ -489,9 +509,9 @@ def get_prior_n(y, design=None, prior_df=20):
     Port of edgeR's getPriorN.
     """
     if isinstance(y, dict):
-        nlibs = y['counts'].shape[1] if 'counts' in y else 0
+        nlibs = y["counts"].shape[1] if "counts" in y else 0
         if design is None:
-            npar = len(y['samples']['group'].unique()) if 'samples' in y else 1
+            npar = len(y["samples"]["group"].unique()) if "samples" in y else 1
         else:
             npar = design.shape[1]
     else:
@@ -506,7 +526,7 @@ def get_prior_n(y, design=None, prior_df=20):
     return prior_df / residual_df
 
 
-def zscore_nbinom(q, size, mu, method='midp'):
+def zscore_nbinom(q, size, mu, method="midp"):
     """Z-score equivalents for negative binomial deviates.
 
     Port of edgeR's zscoreNBinom.
@@ -534,12 +554,14 @@ def zscore_nbinom(q, size, mu, method='midp'):
             logp_tail = stats.nbinom.logsf(qr[i], size[i], size[i] / (size[i] + mu[i]))
             w = 0.5 - (q[i] - qr[i])
             from .limma_port import logsumexp
+
             logp = logsumexp(logp_tail, logd + np.log(max(w, 1e-300)))
             z[i] = -stats.norm.ppf(np.exp(logp)) if np.exp(logp) < 1 else 0
         else:
             logp_tail = stats.nbinom.logcdf(max(qr[i] - 1, 0), size[i], size[i] / (size[i] + mu[i]))
             w = (q[i] - qr[i]) + 0.5
             from .limma_port import logsumexp
+
             logp = logsumexp(logp_tail, logd + np.log(max(w, 1e-300)))
             z[i] = stats.norm.ppf(np.exp(logp)) if np.exp(logp) < 1 else 0
 
@@ -653,9 +675,9 @@ def scale_offset(y, offset):
 
     Port of edgeR's scaleOffset.
     """
-    if isinstance(y, dict) and 'counts' in y:
-        lib_size = y['samples']['lib.size'].values * y['samples']['norm.factors'].values
-        y['offset'] = scale_offset(lib_size, offset)
+    if isinstance(y, dict) and "counts" in y:
+        lib_size = y["samples"]["lib.size"].values * y["samples"]["norm.factors"].values
+        y["offset"] = scale_offset(lib_size, offset)
         return y
 
     if isinstance(y, np.ndarray) and y.ndim == 2:
@@ -741,8 +763,7 @@ def model_matrix(formula, data=None):
         import patsy
     except ImportError:
         raise ImportError(
-            "patsy package required for formula interface. "
-            "Install with: pip install patsy"
+            "patsy package required for formula interface. Install with: pip install patsy"
         )
 
     if data is None:
@@ -752,26 +773,26 @@ def model_matrix(formula, data=None):
     if isinstance(data, dict):
         data = pd.DataFrame(data)
     elif isinstance(data, pd.Series):
-        name = data.name if data.name is not None else 'x0'
+        name = data.name if data.name is not None else "x0"
         data = pd.DataFrame({name: data.values})
     elif isinstance(data, np.ndarray):
         if data.ndim == 1:
-            data = pd.DataFrame({'x0': data})
+            data = pd.DataFrame({"x0": data})
         else:
-            cols = {f'x{i}': data[:, i] for i in range(data.shape[1])}
+            cols = {f"x{i}": data[:, i] for i in range(data.shape[1])}
             data = pd.DataFrame(cols)
     elif not isinstance(data, pd.DataFrame):
         # scipy.sparse or other array-like
-        if hasattr(data, 'toarray'):
+        if hasattr(data, "toarray"):
             data = data.toarray()
         data = np.asarray(data)
         if data.ndim == 1:
-            data = pd.DataFrame({'x0': data})
+            data = pd.DataFrame({"x0": data})
         else:
-            cols = {f'x{i}': data[:, i] for i in range(data.shape[1])}
+            cols = {f"x{i}": data[:, i] for i in range(data.shape[1])}
             data = pd.DataFrame(cols)
 
-    design_info = patsy.dmatrix(formula, data=data, return_type='dataframe')
+    design_info = patsy.dmatrix(formula, data=data, return_type="dataframe")
     return np.asarray(design_info, dtype=np.float64)
 
 
@@ -786,12 +807,12 @@ def _resolve_design(design, y):
     if not isinstance(design, str):
         return design
 
-    if not (isinstance(y, dict) and 'samples' in y):
+    if not (isinstance(y, dict) and "samples" in y):
         raise ValueError(
             "Formula design requires a DGEList with sample metadata. "
             "Pass a DGEList or use model_matrix() explicitly."
         )
-    return model_matrix(design, y['samples'])
+    return model_matrix(design, y["samples"])
 
 
 def model_matrix_meth(object, design=None):
@@ -836,17 +857,15 @@ def model_matrix_meth(object, design=None):
             design_treatments = np.asarray(design, dtype=np.float64)
         else:
             # Build ~group design from samples
-            if 'samples' in object and 'group' in object['samples'].columns:
-                group = object['samples']['group'].values
+            if "samples" in object and "group" in object["samples"].columns:
+                group = object["samples"]["group"].values
                 # Only use first half (Me samples)
-                ncols = object['counts'].shape[1]
+                ncols = object["counts"].shape[1]
                 nsamples = ncols // 2
                 group_half = group[:nsamples] if len(group) > nsamples else group
                 design_treatments = _model_matrix_group(group_half)
             else:
-                raise ValueError(
-                    "No design provided and DGEList has no group factor"
-                )
+                raise ValueError("No design provided and DGEList has no group factor")
     else:
         raise TypeError("object must be a DGEList or a numpy array")
 
@@ -917,24 +936,23 @@ def nearest_tss(chr, locus, tss_data=None, species="Hs"):
         raise ValueError("Length of locus doesn't agree with length of chr")
 
     # Handle NAs
-    na_mask = np.array([(c == '' or c == 'nan' or c == 'None')
-                        for c in chr_arr])
+    na_mask = np.array([(c == "" or c == "nan" or c == "None") for c in chr_arr])
 
     if tss_data is None:
         tss_data = _fetch_tss_biomart(species)
 
     # Ensure tss_data has required columns
-    required = {'chr', 'tss', 'gene_id', 'gene_name', 'strand'}
+    required = {"chr", "tss", "gene_id", "gene_name", "strand"}
     missing = required - set(tss_data.columns)
     if missing:
         raise ValueError(f"tss_data missing columns: {missing}")
 
     # Sort tss_data by chromosome and TSS position
-    tss_data = tss_data.sort_values(['chr', 'tss']).reset_index(drop=True)
+    tss_data = tss_data.sort_values(["chr", "tss"]).reset_index(drop=True)
 
     # Group by chromosome
     tss_by_chr = {}
-    for chrom, grp in tss_data.groupby('chr'):
+    for chrom, grp in tss_data.groupby("chr"):
         tss_by_chr[chrom] = grp
 
     # Prepare output
@@ -946,18 +964,18 @@ def nearest_tss(chr, locus, tss_data=None, species="Hs"):
     out_distance = np.full(n, np.nan, dtype=np.float64)
 
     # Check if query chr values start with "chr" but tss_data doesn't (or vice versa)
-    query_has_chr = any(c.startswith('chr') for c in chr_arr if c)
-    tss_has_chr = any(str(c).startswith('chr') for c in tss_data['chr'].values[:10])
+    query_has_chr = any(c.startswith("chr") for c in chr_arr if c)
+    tss_has_chr = any(str(c).startswith("chr") for c in tss_data["chr"].values[:10])
 
     for chrom_name in tss_by_chr:
         grp = tss_by_chr[chrom_name]
-        tss_positions = grp['tss'].values.astype(np.float64)
+        tss_positions = grp["tss"].values.astype(np.float64)
 
         # Match query chromosomes to this reference chromosome
         if query_has_chr and not tss_has_chr:
-            query_chrom = 'chr' + str(chrom_name)
+            query_chrom = "chr" + str(chrom_name)
         elif not query_has_chr and tss_has_chr:
-            query_chrom = str(chrom_name).replace('chr', '')
+            query_chrom = str(chrom_name).replace("chr", "")
         else:
             query_chrom = str(chrom_name)
 
@@ -965,32 +983,33 @@ def nearest_tss(chr, locus, tss_data=None, species="Hs"):
         if len(iinc) == 0:
             continue
 
-        which = nearest_ref_to_x(locus_arr[iinc].astype(np.float64),
-                                  tss_positions)
+        which = nearest_ref_to_x(locus_arr[iinc].astype(np.float64), tss_positions)
 
         for j, qi in enumerate(iinc):
             ref_idx = which[j]
             row = grp.iloc[ref_idx]
-            out_gene_id[qi] = row['gene_id']
-            out_gene_name[qi] = row['gene_name']
-            out_strand[qi] = row['strand']
-            out_tss[qi] = row['tss']
-            if 'width' in grp.columns:
-                out_width[qi] = row['width']
+            out_gene_id[qi] = row["gene_id"]
+            out_gene_name[qi] = row["gene_name"]
+            out_strand[qi] = row["strand"]
+            out_tss[qi] = row["tss"]
+            if "width" in grp.columns:
+                out_width[qi] = row["width"]
             # distance: signed distance, positive = downstream of TSS
-            dist = locus_arr[qi] - int(row['tss'])
-            if row['strand'] == '-':
+            dist = locus_arr[qi] - int(row["tss"])
+            if row["strand"] == "-":
                 dist = -dist
             out_distance[qi] = dist
 
-    result = pd.DataFrame({
-        'gene_id': out_gene_id,
-        'gene_name': out_gene_name,
-        'strand': out_strand,
-        'tss': pd.array(out_tss, dtype=pd.Int64Dtype()),
-        'width': pd.array(out_width, dtype=pd.Int64Dtype()),
-        'distance': pd.array(out_distance, dtype=pd.Int64Dtype()),
-    })
+    result = pd.DataFrame(
+        {
+            "gene_id": out_gene_id,
+            "gene_name": out_gene_name,
+            "strand": out_strand,
+            "tss": pd.array(out_tss, dtype=pd.Int64Dtype()),
+            "width": pd.array(out_width, dtype=pd.Int64Dtype()),
+            "distance": pd.array(out_distance, dtype=pd.Int64Dtype()),
+        }
+    )
     return result
 
 
@@ -1010,41 +1029,40 @@ def _fetch_tss_biomart(species="Hs"):
         )
 
     species_map = {
-        'Hs': 'hsapiens_gene_ensembl',
-        'Mm': 'mmusculus_gene_ensembl',
-        'Rn': 'rnorvegicus_gene_ensembl',
-        'Dm': 'dmelanogaster_gene_ensembl',
-        'Dr': 'drerio_gene_ensembl',
+        "Hs": "hsapiens_gene_ensembl",
+        "Mm": "mmusculus_gene_ensembl",
+        "Rn": "rnorvegicus_gene_ensembl",
+        "Dm": "dmelanogaster_gene_ensembl",
+        "Dr": "drerio_gene_ensembl",
     }
 
     dataset_name = species_map.get(species)
     if dataset_name is None:
-        raise ValueError(
-            f"Unknown species code '{species}'. Known: {list(species_map.keys())}"
-        )
+        raise ValueError(f"Unknown species code '{species}'. Known: {list(species_map.keys())}")
 
-    server = Server(host='http://www.ensembl.org')
-    dataset = server.marts['ENSEMBL_MART_ENSEMBL'].datasets[dataset_name]
+    server = Server(host="http://www.ensembl.org")
+    dataset = server.marts["ENSEMBL_MART_ENSEMBL"].datasets[dataset_name]
 
     result = dataset.query(
         attributes=[
-            'chromosome_name',
-            'transcription_start_site',
-            'ensembl_gene_id',
-            'external_gene_name',
-            'strand',
-            'transcript_length',
+            "chromosome_name",
+            "transcription_start_site",
+            "ensembl_gene_id",
+            "external_gene_name",
+            "strand",
+            "transcript_length",
         ]
     )
 
-    result.columns = ['chr', 'tss', 'gene_id', 'gene_name', 'strand_int',
-                       'width']
-    result['strand'] = np.where(result['strand_int'] > 0, '+', '-')
-    result = result.drop(columns=['strand_int'])
+    result.columns = ["chr", "tss", "gene_id", "gene_name", "strand_int", "width"]
+    result["strand"] = np.where(result["strand_int"] > 0, "+", "-")
+    result = result.drop(columns=["strand_int"])
 
     # Keep one TSS per gene (the one with smallest TSS per chromosome)
-    result = result.sort_values(['chr', 'tss']).drop_duplicates(
-        subset=['chr', 'gene_id'], keep='first'
-    ).reset_index(drop=True)
+    result = (
+        result.sort_values(["chr", "tss"])
+        .drop_duplicates(subset=["chr", "gene_id"], keep="first")
+        .reset_index(drop=True)
+    )
 
     return result

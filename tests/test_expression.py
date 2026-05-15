@@ -14,6 +14,7 @@ CSV_DIR = os.path.join(os.path.dirname(__file__), "data")
 
 # ── Fixtures ──────────────────────────────────────────────────────────
 
+
 @pytest.fixture(scope="module")
 def d1_expr():
     """Part 1 data with calcNormFactors."""
@@ -25,6 +26,7 @@ def d1_expr():
 
 
 # ── cpm, rpkm, aveLogCPM, cpmByGroup ────────────────────────────────
+
 
 class TestExpressionMeasures:
     """cpm, rpkm, aveLogCPM, cpmByGroup."""
@@ -67,6 +69,7 @@ class TestExpressionMeasures:
 
 # ── rpkmByGroup ──────────────────────────────────────────────────────
 
+
 class TestRpkmByGroup:
     """rpkmByGroup."""
 
@@ -80,13 +83,13 @@ class TestRpkmByGroup:
     def test_rpkm_by_group_log(self, d1_expr):
         d, y, group = d1_expr
         gene_lengths = np.linspace(500, 11000, 22)
-        rpkmbg_log = ep.rpkm_by_group(d, gene_length=gene_lengths,
-                                        log=True)
+        rpkmbg_log = ep.rpkm_by_group(d, gene_length=gene_lengths, log=True)
         # R row 3: [15.6745, 14.8766]
         assert np.allclose(rpkmbg_log[2], [15.6745, 14.8766], atol=0.01)
 
 
 # ── Prior count and logFC shrinkage ──────────────────────────────────
+
 
 class TestPriorCount:
     """Prior count and logFC shrinkage."""
@@ -106,11 +109,9 @@ class TestPriorCount:
         for pc in [0.125, 0.5, 1, 5]:
             fit = ep.glm_fit(d, design=design, prior_count=pc)
             lrt = ep.glm_lrt(fit, coef=1)
-            logfc_maxabs.append(
-                np.max(np.abs(lrt['table']['logFC'].values)))
+            logfc_maxabs.append(np.max(np.abs(lrt["table"]["logFC"].values)))
         # Shrinkage monotonically increasing
-        assert all(logfc_maxabs[i] >= logfc_maxabs[i + 1]
-                   for i in range(len(logfc_maxabs) - 1))
+        assert all(logfc_maxabs[i] >= logfc_maxabs[i + 1] for i in range(len(logfc_maxabs) - 1))
 
     def test_pvalues_unchanged_across_prior(self, d_p37):
         d, y, design = d_p37
@@ -118,7 +119,7 @@ class TestPriorCount:
         for pc in [0.125, 0.5, 1, 5]:
             fit = ep.glm_fit(d, design=design, prior_count=pc)
             lrt = ep.glm_lrt(fit, coef=1)
-            pvals[pc] = lrt['table']['PValue'].values[:5]
+            pvals[pc] = lrt["table"]["PValue"].values[:5]
         # PValues should be approximately the same
         for pc in [0.125, 0.5, 1]:
             assert np.allclose(pvals[pc], pvals[0.125], atol=0.02)
@@ -127,22 +128,20 @@ class TestPriorCount:
         d, y, design = d_p37
         norm_lib = ep.get_norm_lib_sizes(d)
         # R: predFC col2 gene2 pc=0.125: 4.006801
-        pfc = ep.pred_fc(d['counts'], design=design, prior_count=0.125,
-                         offset=np.log(norm_lib))
+        pfc = ep.pred_fc(d["counts"], design=design, prior_count=0.125, offset=np.log(norm_lib))
         assert abs(pfc[1, 1] - 4.006801) < 0.01
 
 
 # ── TPM ─────────────────────────────────────────────────────────────
 
+
 class TestTPM:
     """TPM calculation."""
 
     def test_tpm_basic(self):
-        y = np.array([[100, 200, 150],
-                       [50, 100, 75],
-                       [0, 0, 0],
-                       [500, 600, 550],
-                       [25, 30, 28]], dtype=float)
+        y = np.array(
+            [[100, 200, 150], [50, 100, 75], [0, 0, 0], [500, 600, 550], [25, 30, 28]], dtype=float
+        )
         gene_lengths = np.array([1000, 2000, 500, 3000, 1500], dtype=float)
         tpm_vals = ep.tpm(y, effective_tx_length=gene_lengths)
         # Geometric mean of column sums should be ~1e6
@@ -155,9 +154,7 @@ class TestTPM:
         assert np.all(tpm_vals[np.array([0, 1, 3, 4])] > 0)
 
     def test_tpm_dgelist(self):
-        y = np.array([[100, 200, 150],
-                       [50, 100, 75],
-                       [500, 600, 550]], dtype=float)
+        y = np.array([[100, 200, 150], [50, 100, 75], [500, 600, 550]], dtype=float)
         gene_lengths = np.array([1000, 2000, 3000], dtype=float)
         d = ep.make_dgelist(counts=y, group=np.array([1, 1, 2]))
         tpm_dge = ep.tpm(d, effective_tx_length=gene_lengths)

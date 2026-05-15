@@ -10,8 +10,16 @@ import pandas as pd
 from .expression import cpm
 
 
-def filter_by_expr(y, design=None, group=None, lib_size=None,
-                   min_count=10, min_total_count=15, large_n=10, min_prop=0.7):
+def filter_by_expr(
+    y,
+    design=None,
+    group=None,
+    lib_size=None,
+    min_count=10,
+    min_total_count=15,
+    large_n=10,
+    min_prop=0.7,
+):
     """Filter low-expressed genes.
 
     Port of edgeR's filterByExpr().
@@ -40,15 +48,15 @@ def filter_by_expr(y, design=None, group=None, lib_size=None,
     ndarray of bool, True for genes to keep.
     """
     # DGEList input
-    if isinstance(y, dict) and 'counts' in y:
+    if isinstance(y, dict) and "counts" in y:
         dge = y
         if design is None and group is None:
-            design = dge.get('design')
+            design = dge.get("design")
             if design is None:
-                group = dge['samples']['group'].values
+                group = dge["samples"]["group"].values
         if lib_size is None:
-            lib_size = dge['samples']['lib.size'].values * dge['samples']['norm.factors'].values
-        counts = dge['counts']
+            lib_size = dge["samples"]["lib.size"].values * dge["samples"]["norm.factors"].values
+        counts = dge["counts"]
     else:
         counts = np.asarray(y, dtype=np.float64)
 
@@ -93,4 +101,4 @@ def filter_by_expr(y, design=None, group=None, lib_size=None,
 def _hat_values(design):
     """Compute hat/leverage values for a design matrix."""
     Q, R = np.linalg.qr(design)
-    return np.sum(Q ** 2, axis=1)
+    return np.sum(Q**2, axis=1)

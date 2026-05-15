@@ -13,8 +13,7 @@ from scipy.special import gammaln, digamma, polygamma
 from scipy.optimize import minimize_scalar, minimize
 from numba import njit
 
-from .utils import (expand_as_matrix, systematic_subset, moving_average_by_col,
-                    cut_with_min_n)
+from .utils import expand_as_matrix, systematic_subset, moving_average_by_col, cut_with_min_n
 from .expression import ave_log_cpm
 
 
@@ -130,8 +129,10 @@ def adjusted_profile_lik_grid(grid_dispersions, y, design, offset, weights=None)
     # Check if design is indicator (no back-solve needed)
     first_of_group = np.array([cols[0] for cols in group_cols])
     design_unique = design[first_of_group]
-    is_indicator = (np.sum(design_unique == 1) == ngroups and
-                    np.sum(design_unique == 0) == (ngroups - 1) * ngroups)
+    is_indicator = (
+        np.sum(design_unique == 1) == ngroups
+        and np.sum(design_unique == 0) == (ngroups - 1) * ngroups
+    )
 
     # Precompute gammaln(y+1) — same for all dispersions
     lgamma_y1 = gammaln(y + 1)
@@ -142,7 +143,7 @@ def adjusted_profile_lik_grid(grid_dispersions, y, design, offset, weights=None)
     for gi in range(ngrid):
         # d is (ngenes,) for per-gene dispersions or a scalar for grid dispersions
         if disp_2d:
-            d = grid_dispersions[:, gi]          # (ngenes,)
+            d = grid_dispersions[:, gi]  # (ngenes,)
         else:
             d = np.full(ngenes, grid_dispersions[gi])  # (ngenes,)
 
@@ -154,31 +155,41 @@ def adjusted_profile_lik_grid(grid_dispersions, y, design, offset, weights=None)
                 off_g = offset[:, cols]
                 w_g = w[:, cols]
                 disp_g = d[:, None] * np.ones(len(cols))
-                b = mglm_one_group(y_g, dispersion=disp_g, offset=off_g,
-                                   weights=w_g)
+                b = mglm_one_group(y_g, dispersion=disp_g, offset=off_g, weights=w_g)
                 for jj in cols:
                     mu[:, jj] = np.exp(np.clip(b + offset[:, jj], -500, 500))
         else:
             # General case: fall back to full glm_fit
             from .glm_fit import glm_fit
-            fit = glm_fit(y, design=design, dispersion=d, offset=offset,
-                          weights=weights, prior_count=0)
-            mu = fit['fitted.values']
+
+            fit = glm_fit(
+                y, design=design, dispersion=d, offset=offset, weights=weights, prior_count=0
+            )
+            mu = fit["fitted.values"]
 
         # NB log-likelihood (vectorized over genes)
         mu_safe = np.maximum(mu, 1e-300)
-        r = 1.0 / np.maximum(d, 1e-300)   # (ngenes,)
-        r_col = r[:, None]                  # (ngenes, 1)
+        r = 1.0 / np.maximum(d, 1e-300)  # (ngenes,)
+        r_col = r[:, None]  # (ngenes, 1)
 
-        ll = np.sum(w * (gammaln(y + r_col) - gammaln(r_col) - lgamma_y1
-                    + r_col * np.log(r_col) + y * np.log(mu_safe)
-                    - (r_col + y) * np.log(r_col + mu_safe)), axis=1)
+        ll = np.sum(
+            w
+            * (
+                gammaln(y + r_col)
+                - gammaln(r_col)
+                - lgamma_y1
+                + r_col * np.log(r_col)
+                + y * np.log(mu_safe)
+                - (r_col + y) * np.log(r_col + mu_safe)
+            ),
+            axis=1,
+        )
 
         # Cox-Reid adjustment: -0.5 * log|X'WX|
         working_w = w * mu_safe / (1.0 + d[:, None] * mu_safe)
         working_w = np.maximum(working_w, 1e-300)
 
-        XtWX = np.einsum('gj,jk,jl->gkl', working_w, design, design)
+        XtWX = np.einsum("gj,jk,jl->gkl", working_w, design, design)
 
         apl[:, gi] = ll + _cox_reid_adjust_from_xtwx(XtWX)
 
@@ -209,18 +220,26 @@ def _apl_sum_oneway_scalar(dispersion, y, design, offset, w, group_cols, lgamma_
 
     mu_safe = np.maximum(mu, 1e-300)
     r = 1.0 / d
-    ll = np.sum(w * (gammaln(y + r) - gammaln(r) - lgamma_y1
-                + r * np.log(r) + y * np.log(mu_safe)
-                - (r + y) * np.log(r + mu_safe)), axis=1)
+    ll = np.sum(
+        w
+        * (
+            gammaln(y + r)
+            - gammaln(r)
+            - lgamma_y1
+            + r * np.log(r)
+            + y * np.log(mu_safe)
+            - (r + y) * np.log(r + mu_safe)
+        ),
+        axis=1,
+    )
 
     working_w = np.maximum(w * mu_safe / (1.0 + d * mu_safe), 1e-300)
-    XtWX = np.einsum('gj,jk,jl->gkl', working_w, design, design)
+    XtWX = np.einsum("gj,jk,jl->gkl", working_w, design, design)
 
     return float(np.sum(ll + _cox_reid_adjust_from_xtwx(XtWX)))
 
 
-def adjusted_profile_lik(dispersion, y, design, offset, weights=None,
-                         start=None, get_coef=False):
+def adjusted_profile_lik(dispersion, y, design, offset, weights=None, start=None, get_coef=False):
     """Tagwise Cox-Reid adjusted profile log-likelihoods for the dispersion.
 
     Port of edgeR's adjustedProfileLik (C code reimplemented).
@@ -277,19 +296,34 @@ def adjusted_profile_lik(dispersion, y, design, offset, weights=None,
     # Fast path for one-way designs avoids glm_fit bookkeeping overhead.
     from .glm_fit import glm_fit, mglm_one_way
     from .utils import design_as_factor
+
     group = design_as_factor(design)
-    is_oneway = (len(np.unique(group)) == ncoefs)
+    is_oneway = len(np.unique(group)) == ncoefs
 
     if is_oneway:
-        fit = mglm_one_way(y, design=design, group=group, dispersion=disp,
-                           offset=offset, weights=weights, coef_start=start)
-        mu = fit['fitted.values']
-        beta = fit['coefficients']
+        fit = mglm_one_way(
+            y,
+            design=design,
+            group=group,
+            dispersion=disp,
+            offset=offset,
+            weights=weights,
+            coef_start=start,
+        )
+        mu = fit["fitted.values"]
+        beta = fit["coefficients"]
     else:
-        fit = glm_fit(y, design=design, dispersion=disp, offset=offset,
-                      weights=weights, prior_count=0, start=start)
-        mu = fit['fitted.values']
-        beta = fit.get('unshrunk.coefficients', fit['coefficients'])
+        fit = glm_fit(
+            y,
+            design=design,
+            dispersion=disp,
+            offset=offset,
+            weights=weights,
+            prior_count=0,
+            start=start,
+        )
+        mu = fit["fitted.values"]
+        beta = fit.get("unshrunk.coefficients", fit["coefficients"])
 
     # Compute adjusted profile log-likelihood for all genes (vectorized)
     mu_safe = np.maximum(mu, 1e-300)  # (ngenes, nlibs)
@@ -301,32 +335,40 @@ def adjusted_profile_lik(dispersion, y, design, offset, weights=None,
     ll = np.zeros(ngenes)
     if np.any(is_nb):
         nb = is_nb
-        ll[nb] = np.sum(w[nb] * (gammaln(y[nb] + r_col[nb]) - gammaln(r_col[nb])
-                    - gammaln(y[nb] + 1)
-                    + r_col[nb] * np.log(r_col[nb]) + y[nb] * np.log(mu_safe[nb])
-                    - (r_col[nb] + y[nb]) * np.log(r_col[nb] + mu_safe[nb])), axis=1)
+        ll[nb] = np.sum(
+            w[nb]
+            * (
+                gammaln(y[nb] + r_col[nb])
+                - gammaln(r_col[nb])
+                - gammaln(y[nb] + 1)
+                + r_col[nb] * np.log(r_col[nb])
+                + y[nb] * np.log(mu_safe[nb])
+                - (r_col[nb] + y[nb]) * np.log(r_col[nb] + mu_safe[nb])
+            ),
+            axis=1,
+        )
     if np.any(~is_nb):
         pois = ~is_nb
-        ll[pois] = np.sum(w[pois] * (y[pois] * np.log(mu_safe[pois])
-                    - mu_safe[pois] - gammaln(y[pois] + 1)), axis=1)
+        ll[pois] = np.sum(
+            w[pois] * (y[pois] * np.log(mu_safe[pois]) - mu_safe[pois] - gammaln(y[pois] + 1)),
+            axis=1,
+        )
 
     # Cox-Reid adjustment: -0.5 * log|X'WX| (vectorized)
     # Working weights: mu / (1 + d*mu) for NB, mu for Poisson
     disp_col = disp[:, None]  # (ngenes, 1)
-    working_w = np.where(is_nb[:, None],
-                         w * mu_safe / (1.0 + disp_col * mu_safe),
-                         w * mu_safe)
+    working_w = np.where(is_nb[:, None], w * mu_safe / (1.0 + disp_col * mu_safe), w * mu_safe)
     working_w = np.maximum(working_w, 1e-300)  # (ngenes, nlibs)
 
     # Compute X'WX for all genes at once using einsum
     # XtWX[g, k, l] = sum_j working_w[g,j] * design[j,k] * design[j,l]
-    XtWX = np.einsum('gj,jk,jl->gkl', working_w, design, design)  # (ngenes, ncoefs, ncoefs)
+    XtWX = np.einsum("gj,jk,jl->gkl", working_w, design, design)  # (ngenes, ncoefs, ncoefs)
 
     cr_adj = _cox_reid_adjust_from_xtwx(XtWX)
     apl = ll + cr_adj
 
     if get_coef:
-        return {'apl': apl, 'beta': beta}
+        return {"apl": apl, "beta": beta}
     return apl
 
 
@@ -510,17 +552,28 @@ def cond_log_lik_der_size(y, r, der=0):
 
     if der == 0:
         # Log-likelihood
-        return (np.sum(gammaln(y + r[:, None]), axis=1) +
-                gammaln(n * r) - gammaln(n * (m + r)) - n * gammaln(r))
+        return (
+            np.sum(gammaln(y + r[:, None]), axis=1)
+            + gammaln(n * r)
+            - gammaln(n * (m + r))
+            - n * gammaln(r)
+        )
     elif der == 1:
         # First derivative
-        return (np.sum(digamma(y + r[:, None]), axis=1) +
-                n * digamma(n * r) - n * digamma(n * (m + r)) - n * digamma(r))
+        return (
+            np.sum(digamma(y + r[:, None]), axis=1)
+            + n * digamma(n * r)
+            - n * digamma(n * (m + r))
+            - n * digamma(r)
+        )
     elif der == 2:
         # Second derivative
-        return (np.sum(polygamma(1, y + r[:, None]), axis=1) +
-                n**2 * polygamma(1, n * r) - n**2 * polygamma(1, n * (m + r)) -
-                n * polygamma(1, r))
+        return (
+            np.sum(polygamma(1, y + r[:, None]), axis=1)
+            + n**2 * polygamma(1, n * r)
+            - n**2 * polygamma(1, n * (m + r))
+            - n * polygamma(1, r)
+        )
     else:
         raise ValueError(f"der must be 0, 1, or 2, got {der}")
 
@@ -540,10 +593,11 @@ def cond_log_lik_der_delta(y, delta, der=0):
     if der == 0:
         return cond_log_lik_der_size(y, r, der=0)
     elif der == 1:
-        return cond_log_lik_der_size(y, r, der=1) * (-delta**(-2))
+        return cond_log_lik_der_size(y, r, der=1) * (-(delta ** (-2)))
     elif der == 2:
-        return (cond_log_lik_der_size(y, r, der=1) * 2 * delta**(-3) +
-                cond_log_lik_der_size(y, r, der=2) * delta**(-4))
+        return cond_log_lik_der_size(y, r, der=1) * 2 * delta ** (-3) + cond_log_lik_der_size(
+            y, r, der=2
+        ) * delta ** (-4)
     else:
         raise ValueError(f"der must be 0, 1, or 2, got {der}")
 
@@ -581,15 +635,26 @@ def _cond_log_lik_grid(y, r_vals):
     m = np.mean(y, axis=1)  # (ngenes,)
 
     # y[:, :, None] + r_vals[None, None, :] -> (ngenes, nsamples, ngrid)
-    ll = (np.sum(gammaln(y[:, :, None] + r_vals[None, None, :]), axis=1)  # (ngenes, ngrid)
-          + gammaln(n * r_vals)[None, :]                                    # (1, ngrid)
-          - gammaln(n * (m[:, None] + r_vals[None, :]))                     # (ngenes, ngrid)
-          - n * gammaln(r_vals)[None, :])                                   # (1, ngrid)
+    ll = (
+        np.sum(gammaln(y[:, :, None] + r_vals[None, None, :]), axis=1)  # (ngenes, ngrid)
+        + gammaln(n * r_vals)[None, :]  # (1, ngrid)
+        - gammaln(n * (m[:, None] + r_vals[None, :]))  # (ngenes, ngrid)
+        - n * gammaln(r_vals)[None, :]
+    )  # (1, ngrid)
     return ll
 
 
-def disp_cox_reid(y, design=None, offset=None, weights=None, ave_log_cpm_vals=None,
-                  interval=(0, 4), tol=1e-5, min_row_sum=5, subset=10000):
+def disp_cox_reid(
+    y,
+    design=None,
+    offset=None,
+    weights=None,
+    ave_log_cpm_vals=None,
+    interval=(0, 4),
+    tol=1e-5,
+    min_row_sum=5,
+    subset=10000,
+):
     """Cox-Reid APL estimator of common dispersion.
 
     Port of edgeR's dispCoxReid.
@@ -666,6 +731,7 @@ def disp_cox_reid(y, design=None, offset=None, weights=None, ave_log_cpm_vals=No
     # Function to optimize.
     # Fast path: one-way designs can evaluate APL sum without generic glm_fit overhead.
     from .utils import design_as_factor
+
     group = design_as_factor(design)
     is_oneway = len(np.unique(group)) == design.shape[1]
 
@@ -682,11 +748,12 @@ def disp_cox_reid(y, design=None, offset=None, weights=None, ave_log_cpm_vals=No
         lgamma_y1 = gammaln(y + 1)
 
         def fun(par):
-            disp = par ** 4
+            disp = par**4
             return -_apl_sum_oneway_scalar(disp, y, design, offset, w, group_cols, lgamma_y1)
     else:
+
         def fun(par):
-            disp = par ** 4
+            disp = par**4
             return -np.sum(adjusted_profile_lik(disp, y, design, offset, weights=weights))
 
     # Optimize
@@ -694,16 +761,24 @@ def disp_cox_reid(y, design=None, offset=None, weights=None, ave_log_cpm_vals=No
     hi = interval[1] ** 0.25
     if lo == 0:
         lo = 1e-10
-    result = minimize_scalar(fun, bounds=(lo, hi), method='bounded',
-                             options={'xatol': tol})
-    return result.x ** 4
+    result = minimize_scalar(fun, bounds=(lo, hi), method="bounded", options={"xatol": tol})
+    return result.x**4
 
 
-def disp_cox_reid_interpolate_tagwise(y, design, offset=None, dispersion=None,
-                                       trend=True, ave_log_cpm_vals=None,
-                                       min_row_sum=5, prior_df=10, span=0.3,
-                                       grid_npts=11, grid_range=(-6, 6),
-                                       weights=None):
+def disp_cox_reid_interpolate_tagwise(
+    y,
+    design,
+    offset=None,
+    dispersion=None,
+    trend=True,
+    ave_log_cpm_vals=None,
+    min_row_sum=5,
+    prior_df=10,
+    span=0.3,
+    grid_npts=11,
+    grid_range=(-6, 6),
+    weights=None,
+):
     """Estimate tagwise NB dispersions using Cox-Reid APL with interpolation.
 
     Port of edgeR's dispCoxReidInterpolateTagwise.
@@ -768,12 +843,18 @@ def disp_cox_reid_interpolate_tagwise(y, design, offset=None, dispersion=None,
     if not np.all(keep):
         if np.any(keep):
             dispersion[keep] = disp_cox_reid_interpolate_tagwise(
-                y[keep], design, offset=offset[keep],
+                y[keep],
+                design,
+                offset=offset[keep],
                 dispersion=dispersion[keep],
                 ave_log_cpm_vals=ave_log_cpm_vals[keep],
-                grid_npts=grid_npts, min_row_sum=0,
-                prior_df=prior_df, span=span, trend=trend,
-                weights=weights[keep] if weights is not None and np.ndim(weights) == 2 else weights)
+                grid_npts=grid_npts,
+                min_row_sum=0,
+                prior_df=prior_df,
+                span=span,
+                trend=trend,
+                weights=weights[keep] if weights is not None and np.ndim(weights) == 2 else weights,
+            )
         return dispersion
 
     # Posterior profile likelihood
@@ -798,7 +879,7 @@ def disp_cox_reid_interpolate_tagwise(y, design, offset=None, dispersion=None,
 
     # Tagwise maximization
     d = maximize_interpolant(spline_pts, apl_smooth)
-    return dispersion * 2 ** d
+    return dispersion * 2**d
 
 
 def _ns_basis_with_knots(x, internal_knots, boundary_knots):
@@ -824,9 +905,7 @@ def _ns_basis_with_knots(x, internal_knots, boundary_knots):
     n = len(x)
     internal_knots = np.asarray(internal_knots, dtype=np.float64)
 
-    all_knots = np.sort(np.concatenate([[boundary_knots[0]],
-                                         internal_knots,
-                                         [boundary_knots[1]]]))
+    all_knots = np.sort(np.concatenate([[boundary_knots[0]], internal_knots, [boundary_knots[1]]]))
     K = len(all_knots)
     ncols = K  # = len(internal_knots) + 2
 
@@ -839,8 +918,7 @@ def _ns_basis_with_knots(x, internal_knots, boundary_knots):
         xi_Km1 = all_knots[-2]
 
         def d_func(xi_j):
-            return (np.maximum(x - xi_j, 0) ** 3 -
-                    np.maximum(x - xi_K, 0) ** 3) / (xi_K - xi_j)
+            return (np.maximum(x - xi_j, 0) ** 3 - np.maximum(x - xi_K, 0) ** 3) / (xi_K - xi_j)
 
         d_Km1 = d_func(xi_Km1)
         for j in range(K - 2):
@@ -849,8 +927,9 @@ def _ns_basis_with_knots(x, internal_knots, boundary_knots):
     return basis
 
 
-def disp_cox_reid_spline_trend(y, design, offset=None, df=5, subset=10000,
-                                ave_log_cpm_vals=None, method_optim='Nelder-Mead'):
+def disp_cox_reid_spline_trend(
+    y, design, offset=None, df=5, subset=10000, ave_log_cpm_vals=None, method_optim="Nelder-Mead"
+):
     """Estimate spline trend dispersion.
 
     Faithful port of edgeR's dispCoxReidSplineTrend.
@@ -883,7 +962,7 @@ def disp_cox_reid_spline_trend(y, design, offset=None, df=5, subset=10000,
     if len(abundance_nonzero) < 2:
         common_disp = disp_cox_reid(y_nonzero, design, offset=offset_nonzero)
         disp = np.full(ntags, common_disp)
-        return {'dispersion': disp, 'AveLogCPM': ave_log_cpm_vals}
+        return {"dispersion": disp, "AveLogCPM": ave_log_cpm_vals}
 
     # Knot placement matching R: weighted mix of quantile and equally-spaced
     p1 = np.arange(1, df) / df
@@ -909,10 +988,12 @@ def disp_cox_reid_spline_trend(y, design, offset=None, df=5, subset=10000,
     par0 = np.zeros(df + 1)
     par0[0] = np.median(abundance_nonzero[i]) + np.log(0.1)
 
-    result = minimize(fun, par0, args=(y_nonzero[i], design,
-                                        offset_nonzero[i], abundance_nonzero[i],
-                                        X[i]),
-                       method=method_optim)
+    result = minimize(
+        fun,
+        par0,
+        args=(y_nonzero[i], design, offset_nonzero[i], abundance_nonzero[i], X[i]),
+        method=method_optim,
+    )
 
     # Evaluate fitted dispersions for all genes
     disp_nonzero = np.exp(X @ result.x - abundance_nonzero)
@@ -921,11 +1002,12 @@ def disp_cox_reid_spline_trend(y, design, offset=None, df=5, subset=10000,
     disp[all_zero] = disp_nonzero[np.argmin(abundance_nonzero)] if len(disp_nonzero) > 0 else 0.1
     disp[~all_zero] = disp_nonzero
 
-    return {'dispersion': disp, 'AveLogCPM': ave_log_cpm_vals}
+    return {"dispersion": disp, "AveLogCPM": ave_log_cpm_vals}
 
 
-def disp_cox_reid_power_trend(y, design, offset=None, ave_log_cpm_vals=None,
-                               subset=10000, method_optim='Nelder-Mead'):
+def disp_cox_reid_power_trend(
+    y, design, offset=None, ave_log_cpm_vals=None, subset=10000, method_optim="Nelder-Mead"
+):
     """Estimate power trend dispersion.
 
     Faithful port of edgeR's dispCoxReidPowerTrend.
@@ -969,19 +1051,31 @@ def disp_cox_reid_power_trend(y, design, offset=None, ave_log_cpm_vals=None,
             return 1e10
 
     par0 = np.array([np.log(0.1), 0.0, -5.0])
-    result = minimize(fun, par0, args=(y_nonzero[i], design,
-                                        offset_nonzero[i], abundance_nonzero[i]),
-                       method=method_optim)
+    result = minimize(
+        fun,
+        par0,
+        args=(y_nonzero[i], design, offset_nonzero[i], abundance_nonzero[i]),
+        method=method_optim,
+    )
 
     # Compute dispersion for all genes using fitted parameters
     dispersion = np.exp(result.x[0] + result.x[1] * abundance_full) + np.exp(result.x[2])
 
-    return {'dispersion': dispersion, 'AveLogCPM': abundance_full}
+    return {"dispersion": dispersion, "AveLogCPM": abundance_full}
 
 
-def disp_bin_trend(y, design=None, offset=None, df=5, span=0.3,
-                   min_n=400, method_bin='CoxReid', method_trend='spline',
-                   ave_log_cpm_vals=None, weights=None):
+def disp_bin_trend(
+    y,
+    design=None,
+    offset=None,
+    df=5,
+    span=0.3,
+    min_n=400,
+    method_bin="CoxReid",
+    method_trend="spline",
+    ave_log_cpm_vals=None,
+    weights=None,
+):
     """Estimate dispersion trend by binning.
 
     Port of edgeR's dispBinTrend.
@@ -997,8 +1091,7 @@ def disp_bin_trend(y, design=None, offset=None, df=5, span=0.3,
 
     pos = y.sum(axis=1) > 0
     if not np.any(pos):
-        return {'AveLogCPM': ave_log_cpm_vals,
-                'dispersion': np.zeros(ntags)}
+        return {"AveLogCPM": ave_log_cpm_vals, "dispersion": np.zeros(ntags)}
     npostags = np.sum(pos)
 
     if design is None:
@@ -1019,7 +1112,7 @@ def disp_bin_trend(y, design=None, offset=None, df=5, span=0.3,
     if npostags < 100:
         nbins = 1
     else:
-        nbins = int(np.floor(npostags ** 0.4))
+        nbins = int(np.floor(npostags**0.4))
         nbins = min(nbins, 1000)
         min_n = min(min_n, npostags // nbins)
     if min_n < 50:
@@ -1029,17 +1122,24 @@ def disp_bin_trend(y, design=None, offset=None, df=5, span=0.3,
     nbins = max(nbins, 1)
 
     if nbins == 1:
-        d = disp_cox_reid(y[pos], design, offset=offset[pos],
-                          weights=weights[pos] if weights is not None and np.ndim(weights) == 2 else weights,
-                          min_row_sum=0, ave_log_cpm_vals=ave_log_cpm_vals[pos])
-        return {'AveLogCPM': ave_log_cpm_vals,
-                'dispersion': np.full(ntags, d),
-                'bin.AveLogCPM': np.array([np.mean(ave_log_cpm_vals[pos])]),
-                'bin.dispersion': np.array([d])}
+        d = disp_cox_reid(
+            y[pos],
+            design,
+            offset=offset[pos],
+            weights=weights[pos] if weights is not None and np.ndim(weights) == 2 else weights,
+            min_row_sum=0,
+            ave_log_cpm_vals=ave_log_cpm_vals[pos],
+        )
+        return {
+            "AveLogCPM": ave_log_cpm_vals,
+            "dispersion": np.full(ntags, d),
+            "bin.AveLogCPM": np.array([np.mean(ave_log_cpm_vals[pos])]),
+            "bin.dispersion": np.array([d]),
+        }
 
     groups = np.zeros(ntags, dtype=int)
     bins_info = cut_with_min_n(ave_log_cpm_vals[pos], intervals=nbins, min_n=min_n)
-    groups[pos] = bins_info['group']
+    groups[pos] = bins_info["group"]
 
     bin_d = np.zeros(nbins)
     bin_a = np.zeros(nbins)
@@ -1052,9 +1152,14 @@ def disp_bin_trend(y, design=None, offset=None, df=5, span=0.3,
         if weights is not None and np.ndim(weights) == 2:
             w_bin = weights[bin_mask]
         try:
-            bin_d[i - 1] = disp_cox_reid(y[bin_mask], design, offset=offset[bin_mask],
-                                          weights=w_bin, min_row_sum=0,
-                                          ave_log_cpm_vals=bin_ave)
+            bin_d[i - 1] = disp_cox_reid(
+                y[bin_mask],
+                design,
+                offset=offset[bin_mask],
+                weights=w_bin,
+                min_row_sum=0,
+                ave_log_cpm_vals=bin_ave,
+            )
         except Exception:
             bin_d[i - 1] = 0.1
         bin_a[i - 1] = np.mean(bin_ave)
@@ -1076,9 +1181,13 @@ def disp_bin_trend(y, design=None, offset=None, df=5, span=0.3,
             cnt[idx] += 1.0
         yu = yu / np.maximum(cnt, 1.0)
         y_interp = np.interp(ave_log_cpm_vals, xu, yu, left=yu[0], right=yu[-1])
-        dispersion = np.maximum(y_interp ** 2, 0)
-        return {'AveLogCPM': ave_log_cpm_vals, 'dispersion': dispersion,
-                'bin.AveLogCPM': bin_a, 'bin.dispersion': bin_d}
+        dispersion = np.maximum(y_interp**2, 0)
+        return {
+            "AveLogCPM": ave_log_cpm_vals,
+            "dispersion": dispersion,
+            "bin.AveLogCPM": bin_a,
+            "bin.dispersion": bin_d,
+        }
 
     # Natural spline + OLS matching R's dispBinTrend:
     # ns(bin.A, df=df, knots=0.3*quantile+0.7*equispaced, intercept=TRUE)
@@ -1091,20 +1200,21 @@ def disp_bin_trend(y, design=None, offset=None, df=5, span=0.3,
 
     try:
         basisbins = _ns_basis_with_knots(bin_a, knots, boundary_knots=r)
-        beta = np.linalg.lstsq(basisbins, np.sqrt(np.maximum(bin_d, 0)),
-                                rcond=None)[0]
-        basisall = _ns_basis_with_knots(ave_log_cpm_vals, knots,
-                                         boundary_knots=r)
+        beta = np.linalg.lstsq(basisbins, np.sqrt(np.maximum(bin_d, 0)), rcond=None)[0]
+        basisall = _ns_basis_with_knots(ave_log_cpm_vals, knots, boundary_knots=r)
         dispersion = np.maximum((basisall @ beta) ** 2, 0)
     except Exception:
         dispersion = np.full(ntags, np.mean(bin_d))
 
-    return {'AveLogCPM': ave_log_cpm_vals, 'dispersion': dispersion,
-            'bin.AveLogCPM': bin_a, 'bin.dispersion': bin_d}
+    return {
+        "AveLogCPM": ave_log_cpm_vals,
+        "dispersion": dispersion,
+        "bin.AveLogCPM": bin_a,
+        "bin.dispersion": bin_d,
+    }
 
 
-def disp_pearson(y, design=None, offset=None, subset=10000,
-                 ave_log_cpm_vals=None):
+def disp_pearson(y, design=None, offset=None, subset=10000, ave_log_cpm_vals=None):
     """Pearson estimator of common dispersion.
 
     Port of edgeR's dispPearson.
@@ -1140,15 +1250,17 @@ def disp_pearson(y, design=None, offset=None, subset=10000,
 
     def pearson_disp(d):
         from .glm_fit import glm_fit
+
         fit = glm_fit(y, design=design, dispersion=d, offset=offset, prior_count=0)
-        mu = fit['fitted.values']
+        mu = fit["fitted.values"]
         # Pearson chi-squared
-        pearson = np.sum((y - mu) ** 2 / (mu + d * mu ** 2))
-        return (pearson / (ntags * df_res) - 1)
+        pearson = np.sum((y - mu) ** 2 / (mu + d * mu**2))
+        return pearson / (ntags * df_res) - 1
 
     # Bisection search
     try:
         from scipy.optimize import brentq
+
         result = brentq(pearson_disp, 0.001, 10.0, xtol=1e-5)
     except Exception:
         result = 0.1
@@ -1156,8 +1268,7 @@ def disp_pearson(y, design=None, offset=None, subset=10000,
     return max(result, 0)
 
 
-def disp_deviance(y, design=None, offset=None, subset=10000,
-                  ave_log_cpm_vals=None):
+def disp_deviance(y, design=None, offset=None, subset=10000, ave_log_cpm_vals=None):
     """Deviance estimator of common dispersion.
 
     Port of edgeR's dispDeviance.
@@ -1194,12 +1305,14 @@ def disp_deviance(y, design=None, offset=None, subset=10000,
     def dev_disp(d):
         from .glm_fit import glm_fit
         from .glm_levenberg import nbinom_deviance
+
         fit = glm_fit(y, design=design, dispersion=d, offset=offset, prior_count=0)
-        dev = nbinom_deviance(y, fit['fitted.values'], d)
+        dev = nbinom_deviance(y, fit["fitted.values"], d)
         return np.sum(dev) / (ntags * df_res) - 1
 
     try:
         from scipy.optimize import brentq
+
         result = brentq(dev_disp, 0.001, 10.0, xtol=1e-5)
     except Exception:
         result = 0.1

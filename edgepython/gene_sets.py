@@ -23,13 +23,16 @@ def _zscore_t_hill(x, df):
     A = df - 0.5
     B = 48.0 * A * A
     z = A * np.log1p(x / df * x)
-    z = (((((-0.4 * z - 3.3) * z - 24.0) * z - 85.5) / (0.8 * z * z + 100.0 + B) + z + 3.0) / B + 1.0) * np.sqrt(z)
+    z = (
+        ((((-0.4 * z - 3.3) * z - 24.0) * z - 85.5) / (0.8 * z * z + 100.0 + B) + z + 3.0) / B + 1.0
+    ) * np.sqrt(z)
     return z * np.sign(x)
 
 
 # -----------------------------------------------------------------------
 # Private helpers
 # -----------------------------------------------------------------------
+
 
 def _zscore_glm(y, design, contrast):
     """Convert DGEGLM counts to NB z-scores under null model.
@@ -39,11 +42,11 @@ def _zscore_glm(y, design, contrast):
     from .glm_fit import glm_fit
     from .utils import zscore_nbinom
 
-    counts = y['counts'].copy().astype(np.float64)
+    counts = y["counts"].copy().astype(np.float64)
 
     # QL scaling
-    if y.get('average.ql.dispersion') is not None:
-        s2_prior = np.atleast_1d(np.asarray(y.get('s2.prior', 1.0), dtype=np.float64))
+    if y.get("average.ql.dispersion") is not None:
+        s2_prior = np.atleast_1d(np.asarray(y.get("s2.prior", 1.0), dtype=np.float64))
         if s2_prior.ndim == 0 or s2_prior.size == 1:
             s2_prior = np.full(counts.shape[0], float(s2_prior.ravel()[0]))
         counts = counts / np.maximum(1.0, s2_prior)[:, np.newaxis]
@@ -60,15 +63,16 @@ def _zscore_glm(y, design, contrast):
         # contrast is a vector - remove last column (after contrastAsCoef)
         design0 = design[:, :-1]
 
-    dispersion = y.get('dispersion', 0.05)
-    offset = y.get('offset')
-    w = y.get('weights')
+    dispersion = y.get("dispersion", 0.05)
+    offset = y.get("offset")
+    w = y.get("weights")
 
     # Fit null model
-    fit_null = glm_fit(counts, design=design0, dispersion=dispersion,
-                       offset=offset, weights=w, prior_count=0)
+    fit_null = glm_fit(
+        counts, design=design0, dispersion=dispersion, offset=offset, weights=w, prior_count=0
+    )
 
-    mu = np.maximum(fit_null['fitted.values'], 1e-17)
+    mu = np.maximum(fit_null["fitted.values"], 1e-17)
 
     # size parameter = 1/dispersion
     disp = np.atleast_1d(np.asarray(dispersion, dtype=np.float64))
@@ -96,7 +100,7 @@ def _zscore_dge(y, design, contrast):
     from .utils import zscore_nbinom
     from .limma_port import contrast_as_coef
 
-    counts = y['counts'].copy().astype(np.float64)
+    counts = y["counts"].copy().astype(np.float64)
     design = np.asarray(design, dtype=np.float64)
     p = design.shape[1]
 
@@ -106,8 +110,9 @@ def _zscore_dge(y, design, contrast):
     # Get dispersion
     dispersion = get_dispersion(y)
     if dispersion is None:
-        raise ValueError("Dispersion estimate not found. "
-                         "Please estimate dispersions before gene set testing.")
+        raise ValueError(
+            "Dispersion estimate not found. Please estimate dispersions before gene set testing."
+        )
 
     # Build null design by removing the contrast column
     if isinstance(contrast, (int, np.integer)):
@@ -118,17 +123,16 @@ def _zscore_dge(y, design, contrast):
         # Contrast is a vector: use contrastAsCoef to reparametrize,
         # then drop the last column
         cac = contrast_as_coef(design, contrast, first=False)
-        design_reparametrized = cac['design']
+        design_reparametrized = cac["design"]
         design0 = design_reparametrized[:, :-1]
 
     # Get offset from DGEList
     offset = get_offset(y)
 
     # Fit null model
-    fit_null = glm_fit(counts, design=design0, dispersion=dispersion,
-                       offset=offset, prior_count=0)
+    fit_null = glm_fit(counts, design=design0, dispersion=dispersion, offset=offset, prior_count=0)
 
-    mu = np.maximum(fit_null['fitted.values'], 1e-17)
+    mu = np.maximum(fit_null["fitted.values"], 1e-17)
 
     # size parameter = 1/dispersion
     disp = np.atleast_1d(np.asarray(dispersion, dtype=np.float64))
@@ -149,11 +153,11 @@ def _resolve_input(y, design, contrast):
 
     Used by fry, roast, mroast, romer to dispatch DGEList/DGEGLM/matrix.
     """
-    is_dgeglm = isinstance(y, dict) and 'coefficients' in y and 'dispersion' in y
-    is_dgelist = isinstance(y, dict) and 'counts' in y and 'coefficients' not in y
+    is_dgeglm = isinstance(y, dict) and "coefficients" in y and "dispersion" in y
+    is_dgelist = isinstance(y, dict) and "counts" in y and "coefficients" not in y
 
     if design is None and isinstance(y, dict):
-        design = y.get('design')
+        design = y.get("design")
     if design is None:
         raise ValueError("design matrix must be provided")
     design = np.asarray(design, dtype=np.float64)
@@ -206,31 +210,31 @@ def _extract_effects(y, design, contrast):
                     j = [i for i in range(p) if i != contrast_idx] + [contrast_idx]
                     design = design[:, j]
             else:
-                QR_c = np.linalg.qr(contrast_vec.reshape(-1, 1), mode='complete')
+                QR_c = np.linalg.qr(contrast_vec.reshape(-1, 1), mode="complete")
                 design = (QR_c[0].T @ design.T).T
                 if QR_c[1][0, 0] < 0:
                     design[:, 0] = -design[:, 0]
                 design = np.column_stack([design[:, 1:], design[:, 0]])
 
     # QR decomposition of design
-    Q_full, R_full = np.linalg.qr(design, mode='complete')
+    Q_full, R_full = np.linalg.qr(design, mode="complete")
     effects = Q_full.T @ y.T  # n x G
 
     unscaledt = effects[p - 1, :]  # contrast row
     # Check sign
-    R_reduced = np.linalg.qr(design, mode='reduced')[1]
+    R_reduced = np.linalg.qr(design, mode="reduced")[1]
     if R_reduced[p - 1, p - 1] < 0:
         unscaledt = -unscaledt
 
     # Residual effects
     U = effects[p:, :]  # (n-p) x G
-    sigma2 = np.mean(U ** 2, axis=0)
+    sigma2 = np.mean(U**2, axis=0)
 
     return {
-        'unscaledt': unscaledt,
-        'U': U,
-        'sigma2': sigma2,
-        'df_residual': df_residual,
+        "unscaledt": unscaledt,
+        "U": U,
+        "sigma2": sigma2,
+        "df_residual": df_residual,
     }
 
 
@@ -238,9 +242,19 @@ def _extract_effects(y, design, contrast):
 # camera.default
 # -----------------------------------------------------------------------
 
-def _camera_default(y, index, design, contrast, weights=None,
-                    use_ranks=False, allow_neg_cor=False, inter_gene_cor=0.01,
-                    trend_var=False, sort=True):
+
+def _camera_default(
+    y,
+    index,
+    design,
+    contrast,
+    weights=None,
+    use_ranks=False,
+    allow_neg_cor=False,
+    inter_gene_cor=0.01,
+    trend_var=False,
+    sort=True,
+):
     """Standard camera test. Port of limma's camera.default."""
     from .limma_port import squeeze_var
 
@@ -254,7 +268,8 @@ def _camera_default(y, index, design, contrast, weights=None,
     df_residual = n - p
 
     fixed_cor = inter_gene_cor is not None and not (
-        isinstance(inter_gene_cor, float) and np.isnan(inter_gene_cor))
+        isinstance(inter_gene_cor, float) and np.isnan(inter_gene_cor)
+    )
 
     if fixed_cor:
         if use_ranks:
@@ -280,24 +295,24 @@ def _camera_default(y, index, design, contrast, weights=None,
                     j = [i for i in range(p) if i != contrast_idx] + [contrast_idx]
                     design = design[:, j]
             else:
-                QR_c = np.linalg.qr(contrast_vec.reshape(-1, 1), mode='complete')
+                QR_c = np.linalg.qr(contrast_vec.reshape(-1, 1), mode="complete")
                 design = (QR_c[0].T @ design.T).T
                 if QR_c[1][0, 0] < 0:
                     design[:, 0] = -design[:, 0]
                 design = np.column_stack([design[:, 1:], design[:, 0]])
 
     # QR decomposition of design
-    Q_full, R_full = np.linalg.qr(design, mode='complete')
+    Q_full, R_full = np.linalg.qr(design, mode="complete")
     effects = Q_full.T @ y.T  # n x G
 
     unscaledt = effects[p - 1, :]
-    R_reduced = np.linalg.qr(design, mode='reduced')[1]
+    R_reduced = np.linalg.qr(design, mode="reduced")[1]
     if R_reduced[p - 1, p - 1] < 0:
         unscaledt = -unscaledt
 
     # Residual effects
     U = effects[p:, :]  # (n-p) x G
-    sigma2 = np.mean(U ** 2, axis=0)
+    sigma2 = np.mean(U**2, axis=0)
 
     # Normalize residuals for correlation estimation
     U_norm = (U / np.sqrt(np.maximum(sigma2, 1e-8))).T  # G x (n-p)
@@ -305,8 +320,8 @@ def _camera_default(y, index, design, contrast, weights=None,
     # squeezeVar
     A = np.mean(y, axis=1) if trend_var else None
     sv = squeeze_var(sigma2, np.full(G, float(df_residual)), covariate=A)
-    var_post = sv['var_post']
-    df_prior_val = sv['df_prior']
+    var_post = sv["var_post"]
+    df_prior_val = sv["df_prior"]
 
     modt = unscaledt / np.sqrt(np.maximum(var_post, 1e-15))
 
@@ -315,7 +330,7 @@ def _camera_default(y, index, design, contrast, weights=None,
     else:
         # zscoreT: convert moderated t to z-scores using Hill's approximation
         # (matches R's limma: zscoreT(modt, df=df.total, approx=TRUE, method="hill"))
-        if np.isscalar(df_prior_val) or (hasattr(df_prior_val, 'size') and df_prior_val.size == 1):
+        if np.isscalar(df_prior_val) or (hasattr(df_prior_val, "size") and df_prior_val.size == 1):
             dp = float(np.ravel(df_prior_val)[0])
         else:
             dp = float(np.median(df_prior_val))
@@ -328,7 +343,7 @@ def _camera_default(y, index, design, contrast, weights=None,
         set_names = list(index.keys())
         set_indices = list(index.values())
     elif isinstance(index, list):
-        set_names = [f'Set{i+1}' for i in range(len(index))]
+        set_names = [f"Set{i + 1}" for i in range(len(index))]
         set_indices = index
     else:
         raise ValueError("index must be a dict or list of lists")
@@ -361,37 +376,32 @@ def _camera_default(y, index, design, contrast, weights=None,
         if use_ranks:
             if not allow_neg_cor:
                 correlation = max(0, correlation)
-            p_down, p_up = _rank_sum_test_with_correlation(
-                idx, Stat, correlation, df_camera)
+            p_down, p_up = _rank_sum_test_with_correlation(idx, Stat, correlation, df_camera)
         else:
             if not allow_neg_cor:
                 vif = max(1.0, vif)
             meanStatInSet = np.mean(StatInSet)
             delta = G / m2 * (meanStatInSet - meanStat)
-            varStatPooled = ((G - 1) * varStat - delta ** 2 * m * m2 / G) / (G - 2)
+            varStatPooled = ((G - 1) * varStat - delta**2 * m * m2 / G) / (G - 2)
             varStatPooled = max(varStatPooled, 1e-15)
             two_sample_t = delta / np.sqrt(varStatPooled * (vif / m + 1.0 / m2))
             p_down = t_dist.cdf(two_sample_t, df_camera)
             p_up = t_dist.sf(two_sample_t, df_camera)
 
         p_two = 2 * min(p_down, p_up)
-        direction = 'Up' if p_up < p_down else 'Down'
+        direction = "Up" if p_up < p_down else "Down"
 
-        results.append({
-            'NGenes': m,
-            'Direction': direction,
-            'PValue': p_two
-        })
+        results.append({"NGenes": m, "Direction": direction, "PValue": p_two})
 
     df = pd.DataFrame(results, index=set_names)
     if nsets > 1:
-        _, fdr, _, _ = multipletests(df['PValue'].values, method='fdr_bh')
-        df['FDR'] = fdr
+        _, fdr, _, _ = multipletests(df["PValue"].values, method="fdr_bh")
+        df["FDR"] = fdr
     else:
-        df['FDR'] = df['PValue']
+        df["FDR"] = df["PValue"]
 
     if sort and nsets > 1:
-        df = df.sort_values('PValue')
+        df = df.sort_values("PValue")
 
     return df
 
@@ -406,7 +416,7 @@ def _rank_sum_test_with_correlation(iset, statistics, correlation, df):
     n1 = len(iset)
     n2 = n - n1
 
-    ranks = rankdata(statistics, method='average')
+    ranks = rankdata(statistics, method="average")
     r1 = ranks[iset]
 
     # U statistic (R convention: U = n1*n2 + n1*(n1+1)/2 - sum(r1))
@@ -417,10 +427,12 @@ def _rank_sum_test_with_correlation(iset, statistics, correlation, df):
     if correlation == 0 or n1 == 1:
         sigma2 = n1 * n2 * (n + 1) / 12.0
     else:
-        sigma2 = (np.arcsin(1.0) * n1 * n2
-                  + np.arcsin(0.5) * n1 * n2 * (n2 - 1)
-                  + np.arcsin(correlation / 2.0) * n1 * (n1 - 1) * n2 * (n2 - 1)
-                  + np.arcsin((correlation + 1.0) / 2.0) * n1 * (n1 - 1) * n2)
+        sigma2 = (
+            np.arcsin(1.0) * n1 * n2
+            + np.arcsin(0.5) * n1 * n2 * (n2 - 1)
+            + np.arcsin(correlation / 2.0) * n1 * (n1 - 1) * n2 * (n2 - 1)
+            + np.arcsin((correlation + 1.0) / 2.0) * n1 * (n1 - 1) * n2
+        )
         sigma2 = sigma2 / (2.0 * np.pi)
 
     # Ties adjustment
@@ -438,7 +450,7 @@ def _rank_sum_test_with_correlation(iset, statistics, correlation, df):
 
     if np.isinf(df):
         p_down = norm_dist.sf(z_upper)  # less = P(T > z_upper)
-        p_up = norm_dist.cdf(z_lower)   # greater = P(T < z_lower)
+        p_up = norm_dist.cdf(z_lower)  # greater = P(T < z_lower)
     else:
         p_down = t_dist.sf(z_upper, df)
         p_up = t_dist.cdf(z_lower, df)
@@ -450,9 +462,18 @@ def _rank_sum_test_with_correlation(iset, statistics, correlation, df):
 # Public API
 # -----------------------------------------------------------------------
 
-def camera(y, index, design=None, contrast=None, weights=None,
-           use_ranks=False, allow_neg_cor=False, inter_gene_cor=0.01,
-           sort=True):
+
+def camera(
+    y,
+    index,
+    design=None,
+    contrast=None,
+    weights=None,
+    use_ranks=False,
+    allow_neg_cor=False,
+    inter_gene_cor=0.01,
+    sort=True,
+):
     """Competitive gene set test accounting for inter-gene correlation.
 
     Port of edgeR's camera (camera.DGEList + camera.DGEGLM + camera.default).
@@ -487,11 +508,11 @@ def camera(y, index, design=None, contrast=None, weights=None,
     -------
     DataFrame with columns NGenes, Direction, PValue, FDR.
     """
-    is_dgeglm = isinstance(y, dict) and 'coefficients' in y and 'dispersion' in y
-    is_dgelist = isinstance(y, dict) and 'counts' in y and 'coefficients' not in y
+    is_dgeglm = isinstance(y, dict) and "coefficients" in y and "dispersion" in y
+    is_dgelist = isinstance(y, dict) and "counts" in y and "coefficients" not in y
 
     if design is None and isinstance(y, dict):
-        design = y.get('design')
+        design = y.get("design")
     if design is None:
         raise ValueError("design matrix must be provided")
     design = np.asarray(design, dtype=np.float64)
@@ -501,25 +522,46 @@ def camera(y, index, design=None, contrast=None, weights=None,
 
     if is_dgeglm:
         expr = _zscore_glm(y, design=design, contrast=contrast)
-        return _camera_default(expr, index, design=design, contrast=contrast,
-                               weights=weights, use_ranks=use_ranks,
-                               allow_neg_cor=allow_neg_cor,
-                               inter_gene_cor=inter_gene_cor,
-                               trend_var=False, sort=sort)
+        return _camera_default(
+            expr,
+            index,
+            design=design,
+            contrast=contrast,
+            weights=weights,
+            use_ranks=use_ranks,
+            allow_neg_cor=allow_neg_cor,
+            inter_gene_cor=inter_gene_cor,
+            trend_var=False,
+            sort=sort,
+        )
     elif is_dgelist:
         expr = _zscore_dge(y, design=design, contrast=contrast)
-        return _camera_default(expr, index, design=design, contrast=contrast,
-                               weights=weights, use_ranks=use_ranks,
-                               allow_neg_cor=allow_neg_cor,
-                               inter_gene_cor=inter_gene_cor,
-                               trend_var=False, sort=sort)
+        return _camera_default(
+            expr,
+            index,
+            design=design,
+            contrast=contrast,
+            weights=weights,
+            use_ranks=use_ranks,
+            allow_neg_cor=allow_neg_cor,
+            inter_gene_cor=inter_gene_cor,
+            trend_var=False,
+            sort=sort,
+        )
     else:
         expr = np.asarray(y, dtype=np.float64)
-        return _camera_default(expr, index, design=design, contrast=contrast,
-                               weights=weights, use_ranks=use_ranks,
-                               allow_neg_cor=allow_neg_cor,
-                               inter_gene_cor=inter_gene_cor,
-                               trend_var=False, sort=sort)
+        return _camera_default(
+            expr,
+            index,
+            design=design,
+            contrast=contrast,
+            weights=weights,
+            use_ranks=use_ranks,
+            allow_neg_cor=allow_neg_cor,
+            inter_gene_cor=inter_gene_cor,
+            trend_var=False,
+            sort=sort,
+        )
 
 
 def fry(y, index, design=None, contrast=None, sort=True):
@@ -550,9 +592,9 @@ def fry(y, index, design=None, contrast=None, sort=True):
     expr, design, contrast = _resolve_input(y, design, contrast)
     eff = _extract_effects(expr, design, contrast)
 
-    unscaledt = eff['unscaledt']
-    U = eff['U']
-    df_residual = eff['df_residual']
+    unscaledt = eff["unscaledt"]
+    U = eff["U"]
+    df_residual = eff["df_residual"]
     G = len(unscaledt)
     neffects = df_residual + 1  # contrast + residuals
 
@@ -570,7 +612,7 @@ def fry(y, index, design=None, contrast=None, sort=True):
         set_names = list(index.keys())
         set_indices = list(index.values())
     elif isinstance(index, list):
-        set_names = [f'Set{i+1}' for i in range(len(index))]
+        set_names = [f"Set{i + 1}" for i in range(len(index))]
         set_indices = index
     else:
         raise ValueError("index must be a dict or list of lists")
@@ -587,10 +629,9 @@ def fry(y, index, design=None, contrast=None, sort=True):
 
         # Build EffectsSet: m × neffects (genes × effects)
         # Column 0 = contrast, columns 1: = residuals
-        effects_set = np.column_stack([
-            unscaledt[idx].reshape(-1, 1),
-            U[:, idx].T
-        ])  # m × (df_residual + 1)
+        effects_set = np.column_stack(
+            [unscaledt[idx].reshape(-1, 1), U[:, idx].T]
+        )  # m × (df_residual + 1)
 
         # --- Directional test (matching R's .fryEffects) ---
         # Average effects across genes in the set
@@ -605,7 +646,7 @@ def fry(y, index, design=None, contrast=None, sort=True):
         # --- Mixed test (SVD-based, matching R's .fryEffects) ---
         if m > 1:
             svd_vals = np.linalg.svd(effects_set, compute_uv=False)
-            A = svd_vals ** 2  # squared singular values
+            A = svd_vals**2  # squared singular values
             d1 = len(A)
             d = d1 - 1
 
@@ -639,43 +680,44 @@ def fry(y, index, design=None, contrast=None, sort=True):
     p_dir = 2.0 * t_dist.sf(np.abs(t_stat_arr), df_residual)
 
     # Direction
-    directions = np.where(t_stat_arr >= 0, 'Up', 'Down')
+    directions = np.where(t_stat_arr >= 0, "Up", "Down")
 
     # For single-gene sets, mixed p-value = directional p-value (matching R)
     p_mixed_arr[ngenes_arr == 1] = p_dir[ngenes_arr == 1]
 
     results = []
     for s_idx in range(nsets):
-        results.append({
-            'NGenes': ngenes_arr[s_idx],
-            'Direction': directions[s_idx],
-            'PValue': p_dir[s_idx],
-            'PValue.Mixed': p_mixed_arr[s_idx],
-        })
+        results.append(
+            {
+                "NGenes": ngenes_arr[s_idx],
+                "Direction": directions[s_idx],
+                "PValue": p_dir[s_idx],
+                "PValue.Mixed": p_mixed_arr[s_idx],
+            }
+        )
 
     result_df = pd.DataFrame(results, index=set_names)
 
     # FDR correction
     if nsets > 1:
-        _, fdr, _, _ = multipletests(result_df['PValue'].values, method='fdr_bh')
-        result_df['FDR'] = fdr
-        _, fdr_mixed, _, _ = multipletests(result_df['PValue.Mixed'].values, method='fdr_bh')
-        result_df['FDR.Mixed'] = fdr_mixed
+        _, fdr, _, _ = multipletests(result_df["PValue"].values, method="fdr_bh")
+        result_df["FDR"] = fdr
+        _, fdr_mixed, _, _ = multipletests(result_df["PValue.Mixed"].values, method="fdr_bh")
+        result_df["FDR.Mixed"] = fdr_mixed
     else:
-        result_df['FDR'] = result_df['PValue'].values
-        result_df['FDR.Mixed'] = result_df['PValue.Mixed'].values
+        result_df["FDR"] = result_df["PValue"].values
+        result_df["FDR.Mixed"] = result_df["PValue.Mixed"].values
 
     # Reorder columns
-    result_df = result_df[['NGenes', 'Direction', 'PValue', 'FDR', 'PValue.Mixed', 'FDR.Mixed']]
+    result_df = result_df[["NGenes", "Direction", "PValue", "FDR", "PValue.Mixed", "FDR.Mixed"]]
 
     if sort and nsets > 1:
-        result_df = result_df.sort_values('PValue')
+        result_df = result_df.sort_values("PValue")
 
     return result_df
 
 
-def roast(y, index, design=None, contrast=None, nrot=999,
-          set_statistic='mean', sort=True):
+def roast(y, index, design=None, contrast=None, nrot=999, set_statistic="mean", sort=True):
     """Rotation gene set test for a single or multiple gene sets.
 
     Port of edgeR's roast.DGEList → limma's roast.default.
@@ -721,9 +763,9 @@ def roast(y, index, design=None, contrast=None, nrot=999,
         idx = np.asarray(index, dtype=int)
 
     eff = _extract_effects(expr, design, contrast)
-    unscaledt = eff['unscaledt']
-    U = eff['U']
-    df_residual = eff['df_residual']
+    unscaledt = eff["unscaledt"]
+    U = eff["U"]
+    df_residual = eff["df_residual"]
     G = len(unscaledt)
 
     # For DGEList z-scores: var.prior=1, df.prior=Inf => var_post=1
@@ -788,19 +830,31 @@ def roast(y, index, design=None, contrast=None, nrot=999,
     p_upordown = (count_upordown + 1) / (nrot + 1)
     p_mixed = (count_mixed + 1) / (nrot + 1)
 
-    result = pd.DataFrame({
-        'Active.Prop': [active_down, active_up, max(active_down, active_up), np.nan],
-        'P.Value': [p_down, p_up, p_upordown, p_mixed],
-    }, index=['Down', 'Up', 'UpOrDown', 'Mixed'])
+    result = pd.DataFrame(
+        {
+            "Active.Prop": [active_down, active_up, max(active_down, active_up), np.nan],
+            "P.Value": [p_down, p_up, p_upordown, p_mixed],
+        },
+        index=["Down", "Up", "UpOrDown", "Mixed"],
+    )
 
     # Add ngenes as metadata
-    result.attrs['ngenes'] = m
+    result.attrs["ngenes"] = m
 
     return result
 
 
-def mroast(y, index, design=None, contrast=None, nrot=999,
-           set_statistic='mean', adjust_method='BH', midp=True, sort=True):
+def mroast(
+    y,
+    index,
+    design=None,
+    contrast=None,
+    nrot=999,
+    set_statistic="mean",
+    adjust_method="BH",
+    midp=True,
+    sort=True,
+):
     """Rotation gene set test for multiple gene sets.
 
     Port of edgeR's mroast.DGEList → limma's mroast.default.
@@ -841,7 +895,7 @@ def mroast(y, index, design=None, contrast=None, nrot=999,
         set_names = list(index.keys())
         set_indices = [np.asarray(v, dtype=int) for v in index.values()]
     elif isinstance(index, list):
-        set_names = [f'Set{i+1}' for i in range(len(index))]
+        set_names = [f"Set{i + 1}" for i in range(len(index))]
         set_indices = [np.asarray(v, dtype=int) for v in index]
     else:
         raise ValueError("index must be a dict or list of lists")
@@ -849,9 +903,9 @@ def mroast(y, index, design=None, contrast=None, nrot=999,
     nsets = len(set_names)
 
     eff = _extract_effects(expr, design, contrast)
-    unscaledt = eff['unscaledt']
-    U = eff['U']
-    df_residual = eff['df_residual']
+    unscaledt = eff["unscaledt"]
+    U = eff["U"]
+    df_residual = eff["df_residual"]
     G = len(unscaledt)
 
     # For DGEList z-scores: var.prior=1, df.prior=Inf => var_post=1
@@ -914,13 +968,18 @@ def mroast(y, index, design=None, contrast=None, nrot=999,
 
     # Two-sided directional p-value and direction
     p_dir = np.minimum(2 * np.minimum(p_up_vals, p_down_vals), 1.0)
-    directions = np.where(p_up_vals < p_down_vals, 'Up', 'Down')
+    directions = np.where(p_up_vals < p_down_vals, "Up", "Down")
 
     # FDR correction
-    method_map = {'BH': 'fdr_bh', 'bonferroni': 'bonferroni',
-                  'holm': 'holm', 'hochberg': 'simes-hochberg',
-                  'BY': 'fdr_by', 'fdr': 'fdr_bh'}
-    sm_method = method_map.get(adjust_method, 'fdr_bh')
+    method_map = {
+        "BH": "fdr_bh",
+        "bonferroni": "bonferroni",
+        "holm": "holm",
+        "hochberg": "simes-hochberg",
+        "BY": "fdr_by",
+        "fdr": "fdr_bh",
+    }
+    sm_method = method_map.get(adjust_method, "fdr_bh")
 
     if nsets > 1:
         _, fdr_dir, _, _ = multipletests(p_dir, method=sm_method)
@@ -929,19 +988,22 @@ def mroast(y, index, design=None, contrast=None, nrot=999,
         fdr_dir = p_dir
         fdr_mixed = p_mixed_vals
 
-    result_df = pd.DataFrame({
-        'NGenes': set_sizes,
-        'PropDown': prop_down,
-        'PropUp': prop_up,
-        'Direction': directions,
-        'PValue': p_dir,
-        'FDR': fdr_dir,
-        'PValue.Mixed': p_mixed_vals,
-        'FDR.Mixed': fdr_mixed,
-    }, index=set_names)
+    result_df = pd.DataFrame(
+        {
+            "NGenes": set_sizes,
+            "PropDown": prop_down,
+            "PropUp": prop_up,
+            "Direction": directions,
+            "PValue": p_dir,
+            "FDR": fdr_dir,
+            "PValue.Mixed": p_mixed_vals,
+            "FDR.Mixed": fdr_mixed,
+        },
+        index=set_names,
+    )
 
     if sort and nsets > 1:
-        result_df = result_df.sort_values('PValue')
+        result_df = result_df.sort_values("PValue")
 
     return result_df
 
@@ -981,7 +1043,7 @@ def romer(y, index, design=None, contrast=None, nrot=9999):
         set_names = list(index.keys())
         set_indices = [np.asarray(v, dtype=int) for v in index.values()]
     elif isinstance(index, list):
-        set_names = [f'Set{i+1}' for i in range(len(index))]
+        set_names = [f"Set{i + 1}" for i in range(len(index))]
         set_indices = [np.asarray(v, dtype=int) for v in index]
     else:
         raise ValueError("index must be a dict or list of lists")
@@ -989,16 +1051,16 @@ def romer(y, index, design=None, contrast=None, nrot=9999):
     nsets = len(set_names)
 
     eff = _extract_effects(expr, design, contrast)
-    unscaledt = eff['unscaledt']
-    U = eff['U']
-    sigma2 = eff['sigma2']
-    df_residual = eff['df_residual']
+    unscaledt = eff["unscaledt"]
+    U = eff["U"]
+    sigma2 = eff["sigma2"]
+    df_residual = eff["df_residual"]
     G = len(unscaledt)
 
     # squeezeVar to estimate prior (romer does its own variance moderation)
     sv = squeeze_var(sigma2, np.full(G, float(df_residual)))
-    var_post = sv['var_post']
-    df_prior_val = sv['df_prior']
+    var_post = sv["var_post"]
+    df_prior_val = sv["df_prior"]
 
     # Moderated t-statistics
     sd_post = np.sqrt(np.maximum(var_post, 1e-15))
@@ -1009,7 +1071,7 @@ def romer(y, index, design=None, contrast=None, nrot=9999):
         dp = float(df_prior_val)
     else:
         dp = float(np.median(df_prior_val))
-    s0 = np.sqrt(np.maximum(sv.get('var_prior', 1.0), 1e-15))
+    s0 = np.sqrt(np.maximum(sv.get("var_prior", 1.0), 1e-15))
     if np.isscalar(s0):
         s0 = float(s0)
     else:
@@ -1076,17 +1138,20 @@ def romer(y, index, design=None, contrast=None, nrot=9999):
     p_down = (count_down + 1) / (nrot + 1)
     p_mixed = (count_mixed + 1) / (nrot + 1)
 
-    result_df = pd.DataFrame({
-        'NGenes': set_sizes,
-        'Up': p_up,
-        'Down': p_down,
-        'Mixed': p_mixed,
-    }, index=set_names)
+    result_df = pd.DataFrame(
+        {
+            "NGenes": set_sizes,
+            "Up": p_up,
+            "Down": p_down,
+            "Mixed": p_mixed,
+        },
+        index=set_names,
+    )
 
     return result_df
 
 
-def goana(de, species='Hs', **kwargs):
+def goana(de, species="Hs", **kwargs):
     """Gene ontology enrichment analysis using g:Profiler.
 
     Wraps the gprofiler-official Python package for GO enrichment.
@@ -1115,30 +1180,37 @@ def goana(de, species='Hs', **kwargs):
             "Then:\n"
             "  from gprofiler import GProfiler\n"
             "  gp = GProfiler(return_dataframe=True)\n"
-            "  result = gp.profile(organism='hsapiens', query=gene_list)")
+            "  result = gp.profile(organism='hsapiens', query=gene_list)"
+        )
         return pd.DataFrame()
 
     # Map species codes
     species_map = {
-        'Hs': 'hsapiens', 'Mm': 'mmusculus', 'Rn': 'rnorvegicus',
-        'Dm': 'dmelanogaster', 'Sc': 'scerevisiae', 'Ce': 'celegans',
-        'Dr': 'drerio',
+        "Hs": "hsapiens",
+        "Mm": "mmusculus",
+        "Rn": "rnorvegicus",
+        "Dm": "dmelanogaster",
+        "Sc": "scerevisiae",
+        "Ce": "celegans",
+        "Dr": "drerio",
     }
     organism = species_map.get(species, species)
 
     # Extract gene list
-    if isinstance(de, dict) and 'table' in de:
-        table = de['table']
+    if isinstance(de, dict) and "table" in de:
+        table = de["table"]
         if isinstance(table, pd.DataFrame):
-            sig = table[table['PValue'] < 0.05] if 'PValue' in table.columns else table
+            sig = table[table["PValue"] < 0.05] if "PValue" in table.columns else table
             gene_list = list(sig.index)
         else:
             gene_list = []
     elif isinstance(de, (list, np.ndarray)):
         gene_list = list(de)
     else:
-        warnings.warn("goana: cannot extract gene list from input. "
-                       "Provide a DGELRT/DGEExact dict or a list of gene IDs.")
+        warnings.warn(
+            "goana: cannot extract gene list from input. "
+            "Provide a DGELRT/DGEExact dict or a list of gene IDs."
+        )
         return pd.DataFrame()
 
     if len(gene_list) == 0:
@@ -1146,13 +1218,12 @@ def goana(de, species='Hs', **kwargs):
         return pd.DataFrame()
 
     gp = GProfiler(return_dataframe=True)
-    sources = kwargs.pop('sources', ['GO:BP', 'GO:MF', 'GO:CC'])
-    result = gp.profile(organism=organism, query=gene_list,
-                        sources=sources, **kwargs)
+    sources = kwargs.pop("sources", ["GO:BP", "GO:MF", "GO:CC"])
+    result = gp.profile(organism=organism, query=gene_list, sources=sources, **kwargs)
     return result
 
 
-def kegga(de, species='Hs', **kwargs):
+def kegga(de, species="Hs", **kwargs):
     """KEGG pathway enrichment analysis using g:Profiler.
 
     Wraps the gprofiler-official Python package for KEGG enrichment.
@@ -1182,29 +1253,36 @@ def kegga(de, species='Hs', **kwargs):
             "  from gprofiler import GProfiler\n"
             "  gp = GProfiler(return_dataframe=True)\n"
             "  result = gp.profile(organism='hsapiens', query=gene_list, "
-            "sources=['KEGG'])")
+            "sources=['KEGG'])"
+        )
         return pd.DataFrame()
 
     species_map = {
-        'Hs': 'hsapiens', 'Mm': 'mmusculus', 'Rn': 'rnorvegicus',
-        'Dm': 'dmelanogaster', 'Sc': 'scerevisiae', 'Ce': 'celegans',
-        'Dr': 'drerio',
+        "Hs": "hsapiens",
+        "Mm": "mmusculus",
+        "Rn": "rnorvegicus",
+        "Dm": "dmelanogaster",
+        "Sc": "scerevisiae",
+        "Ce": "celegans",
+        "Dr": "drerio",
     }
     organism = species_map.get(species, species)
 
     # Extract gene list
-    if isinstance(de, dict) and 'table' in de:
-        table = de['table']
+    if isinstance(de, dict) and "table" in de:
+        table = de["table"]
         if isinstance(table, pd.DataFrame):
-            sig = table[table['PValue'] < 0.05] if 'PValue' in table.columns else table
+            sig = table[table["PValue"] < 0.05] if "PValue" in table.columns else table
             gene_list = list(sig.index)
         else:
             gene_list = []
     elif isinstance(de, (list, np.ndarray)):
         gene_list = list(de)
     else:
-        warnings.warn("kegga: cannot extract gene list from input. "
-                       "Provide a DGELRT/DGEExact dict or a list of gene IDs.")
+        warnings.warn(
+            "kegga: cannot extract gene list from input. "
+            "Provide a DGELRT/DGEExact dict or a list of gene IDs."
+        )
         return pd.DataFrame()
 
     if len(gene_list) == 0:
@@ -1212,6 +1290,5 @@ def kegga(de, species='Hs', **kwargs):
         return pd.DataFrame()
 
     gp = GProfiler(return_dataframe=True)
-    result = gp.profile(organism=organism, query=gene_list,
-                        sources=['KEGG'], **kwargs)
+    result = gp.profile(organism=organism, query=gene_list, sources=["KEGG"], **kwargs)
     return result

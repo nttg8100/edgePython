@@ -7,7 +7,8 @@ import numpy as np
 import pandas as pd
 import pytest
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 
 import edgepython as ep
 
@@ -30,8 +31,7 @@ class TestMDSComputation:
         dist_mat = np.zeros((nsamples, nsamples))
         for i in range(nsamples):
             for j in range(i + 1, nsamples):
-                d_val = np.sqrt(np.mean(
-                    (log_cpm_top[:, i] - log_cpm_top[:, j]) ** 2))
+                d_val = np.sqrt(np.mean((log_cpm_top[:, i] - log_cpm_top[:, j]) ** 2))
                 dist_mat[i, j] = d_val
                 dist_mat[j, i] = d_val
         # Distance matrix symmetric
@@ -46,10 +46,10 @@ class TestVisualizationSmoke:
     @pytest.fixture(scope="class")
     def viz_data(self):
         import matplotlib.pyplot as plt
+
         y = pd.read_csv(f"{CSV_DIR}/test_data_part4.csv").values
         y[0:5, 1:3] = 0
-        design = np.column_stack([np.ones(3),
-                                   np.array([0, 1, 1], dtype=float)])
+        design = np.column_stack([np.ones(3), np.array([0, 1, 1], dtype=float)])
         d = ep.make_dgelist(counts=y, group=np.array([1, 2, 2]))
         d = ep.calc_norm_factors(d)
         d = ep.estimate_disp(d, design)
@@ -60,6 +60,7 @@ class TestVisualizationSmoke:
 
     def test_plot_bcv(self, viz_data):
         import matplotlib.pyplot as plt
+
         d, fit_ql, qlf, de = viz_data
         fig, ax = ep.plot_bcv(d)
         assert fig is not None
@@ -68,6 +69,7 @@ class TestVisualizationSmoke:
 
     def test_plot_mds(self, viz_data):
         import matplotlib.pyplot as plt
+
         d, fit_ql, qlf, de = viz_data
         fig, ax = ep.plot_mds(d)
         assert fig is not None
@@ -76,6 +78,7 @@ class TestVisualizationSmoke:
 
     def test_plot_ql_disp(self, viz_data):
         import matplotlib.pyplot as plt
+
         d, fit_ql, qlf, de = viz_data
         fig, ax = ep.plot_ql_disp(fit_ql)
         assert fig is not None
@@ -84,6 +87,7 @@ class TestVisualizationSmoke:
 
     def test_plot_smear(self, viz_data):
         import matplotlib.pyplot as plt
+
         d, fit_ql, qlf, de = viz_data
         fig, ax = ep.plot_smear(de)
         assert fig is not None
@@ -92,6 +96,7 @@ class TestVisualizationSmoke:
 
     def test_plot_md(self, viz_data):
         import matplotlib.pyplot as plt
+
         d, fit_ql, qlf, de = viz_data
         fig, ax = ep.plot_md(qlf)
         assert fig is not None
@@ -104,6 +109,7 @@ class TestMAPlot:
 
     def test_ma_plot(self):
         import matplotlib.pyplot as plt
+
         a = np.random.RandomState(42).randn(100) * 2 + 10
         m = np.random.RandomState(43).randn(100) * 0.5
         fig, ax = ep.ma_plot(a, m)
@@ -112,6 +118,7 @@ class TestMAPlot:
 
     def test_ma_plot_with_de_tags(self):
         import matplotlib.pyplot as plt
+
         a = np.random.RandomState(42).randn(100) * 2 + 10
         m = np.random.RandomState(43).randn(100) * 0.5
         fig, ax = ep.ma_plot(a, m, de_tags=np.array([0, 1, 2, 3, 4]))

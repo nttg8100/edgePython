@@ -12,9 +12,17 @@ from scipy import stats
 from statsmodels.stats.multitest import multipletests
 
 
-def calc_norm_factors(counts, lib_size=None, method='TMM', ref_column=None,
-                      logratio_trim=0.3, sum_trim=0.05, do_weighting=True,
-                      a_cutoff=-1e10, p=0.75):
+def calc_norm_factors(
+    counts,
+    lib_size=None,
+    method="TMM",
+    ref_column=None,
+    logratio_trim=0.3,
+    sum_trim=0.05,
+    do_weighting=True,
+    a_cutoff=-1e10,
+    p=0.75,
+):
     """Calculate normalization factors for a count matrix.
 
     Port of edgeR's calcNormFactors / normLibSizes.
@@ -45,32 +53,56 @@ def calc_norm_factors(counts, lib_size=None, method='TMM', ref_column=None,
     DGEList (if input is DGEList) or ndarray of normalization factors.
     """
     # Handle DGEList input
-    if isinstance(counts, dict) and 'counts' in counts:
+    if isinstance(counts, dict) and "counts" in counts:
         y = counts
-        if y.get('offset') is not None:
-            warnings.warn("object contains offsets, which take precedence over library "
-                          "sizes and norm factors (and which will not be recomputed).")
-        ls = y['samples']['lib.size'].values
+        if y.get("offset") is not None:
+            warnings.warn(
+                "object contains offsets, which take precedence over library "
+                "sizes and norm factors (and which will not be recomputed)."
+            )
+        ls = y["samples"]["lib.size"].values
         nf = _calc_norm_factors_default(
-            y['counts'], lib_size=ls, method=method, ref_column=ref_column,
-            logratio_trim=logratio_trim, sum_trim=sum_trim,
-            do_weighting=do_weighting, a_cutoff=a_cutoff, p=p)
-        y['samples']['norm.factors'] = nf
+            y["counts"],
+            lib_size=ls,
+            method=method,
+            ref_column=ref_column,
+            logratio_trim=logratio_trim,
+            sum_trim=sum_trim,
+            do_weighting=do_weighting,
+            a_cutoff=a_cutoff,
+            p=p,
+        )
+        y["samples"]["norm.factors"] = nf
         return y
 
     return _calc_norm_factors_default(
-        counts, lib_size=lib_size, method=method, ref_column=ref_column,
-        logratio_trim=logratio_trim, sum_trim=sum_trim,
-        do_weighting=do_weighting, a_cutoff=a_cutoff, p=p)
+        counts,
+        lib_size=lib_size,
+        method=method,
+        ref_column=ref_column,
+        logratio_trim=logratio_trim,
+        sum_trim=sum_trim,
+        do_weighting=do_weighting,
+        a_cutoff=a_cutoff,
+        p=p,
+    )
 
 
 # Alias
 norm_lib_sizes = calc_norm_factors
 
 
-def _calc_norm_factors_default(x, lib_size=None, method='TMM', ref_column=None,
-                               logratio_trim=0.3, sum_trim=0.05, do_weighting=True,
-                               a_cutoff=-1e10, p=0.75):
+def _calc_norm_factors_default(
+    x,
+    lib_size=None,
+    method="TMM",
+    ref_column=None,
+    logratio_trim=0.3,
+    sum_trim=0.05,
+    do_weighting=True,
+    a_cutoff=-1e10,
+    p=0.75,
+):
     """Core normalization factor calculation for count matrices."""
     x = np.asarray(x, dtype=np.float64)
     if np.any(np.isnan(x)):
@@ -89,10 +121,10 @@ def _calc_norm_factors_default(x, lib_size=None, method='TMM', ref_column=None,
             lib_size = np.full(nsamples, lib_size[0] if len(lib_size) == 1 else lib_size.mean())
 
     # Backward compatibility
-    if method == 'TMMwzp':
-        method = 'TMMwsp'
+    if method == "TMMwzp":
+        method = "TMMwsp"
 
-    valid_methods = ('TMM', 'TMMwsp', 'RLE', 'upperquartile', 'none')
+    valid_methods = ("TMM", "TMMwsp", "RLE", "upperquartile", "none")
     if method not in valid_methods:
         raise ValueError(f"method must be one of {valid_methods}")
 
@@ -103,15 +135,15 @@ def _calc_norm_factors_default(x, lib_size=None, method='TMM', ref_column=None,
 
     # Degenerate cases
     if x.shape[0] == 0 or nsamples == 1:
-        method = 'none'
+        method = "none"
 
-    if method == 'TMM':
+    if method == "TMM":
         f = _calc_tmm(x, lib_size, ref_column, logratio_trim, sum_trim, do_weighting, a_cutoff)
-    elif method == 'TMMwsp':
+    elif method == "TMMwsp":
         f = _calc_tmmwsp(x, lib_size, ref_column, logratio_trim, sum_trim, do_weighting, a_cutoff)
-    elif method == 'RLE':
+    elif method == "RLE":
         f = _calc_factor_rle(x) / lib_size
-    elif method == 'upperquartile':
+    elif method == "upperquartile":
         f = _calc_factor_quantile(x, lib_size, p)
     else:
         f = np.ones(nsamples)
@@ -137,10 +169,15 @@ def _calc_tmm(x, lib_size, ref_column, logratio_trim, sum_trim, do_weighting, a_
     f = np.full(nsamples, np.nan)
     for i in range(nsamples):
         f[i] = _calc_factor_tmm(
-            obs=x[:, i], ref=x[:, ref_column],
-            libsize_obs=lib_size[i], libsize_ref=lib_size[ref_column],
-            logratio_trim=logratio_trim, sum_trim=sum_trim,
-            do_weighting=do_weighting, a_cutoff=a_cutoff)
+            obs=x[:, i],
+            ref=x[:, ref_column],
+            libsize_obs=lib_size[i],
+            libsize_ref=lib_size[ref_column],
+            logratio_trim=logratio_trim,
+            sum_trim=sum_trim,
+            do_weighting=do_weighting,
+            a_cutoff=a_cutoff,
+        )
     return f
 
 
@@ -153,16 +190,21 @@ def _calc_tmmwsp(x, lib_size, ref_column, logratio_trim, sum_trim, do_weighting,
     f = np.full(nsamples, np.nan)
     for i in range(nsamples):
         f[i] = _calc_factor_tmmwsp(
-            obs=x[:, i], ref=x[:, ref_column],
-            libsize_obs=lib_size[i], libsize_ref=lib_size[ref_column],
-            logratio_trim=logratio_trim, sum_trim=sum_trim,
-            do_weighting=do_weighting, a_cutoff=a_cutoff)
+            obs=x[:, i],
+            ref=x[:, ref_column],
+            libsize_obs=lib_size[i],
+            libsize_ref=lib_size[ref_column],
+            logratio_trim=logratio_trim,
+            sum_trim=sum_trim,
+            do_weighting=do_weighting,
+            a_cutoff=a_cutoff,
+        )
     return f
 
 
 def _calc_factor_rle(data):
     """Scale factors as in Anders et al (2010)."""
-    with np.errstate(divide='ignore'):
+    with np.errstate(divide="ignore"):
         gm = np.exp(np.mean(np.log(data.astype(float)), axis=1))
     pos = gm > 0
     result = np.zeros(data.shape[1])
@@ -182,9 +224,16 @@ def _calc_factor_quantile(data, lib_size, p=0.75):
     return f / lib_size
 
 
-def _calc_factor_tmm(obs, ref, libsize_obs=None, libsize_ref=None,
-                     logratio_trim=0.3, sum_trim=0.05, do_weighting=True,
-                     a_cutoff=-1e10):
+def _calc_factor_tmm(
+    obs,
+    ref,
+    libsize_obs=None,
+    libsize_ref=None,
+    logratio_trim=0.3,
+    sum_trim=0.05,
+    do_weighting=True,
+    a_cutoff=-1e10,
+):
     """TMM between two libraries."""
     obs = np.asarray(obs, dtype=np.float64)
     ref = np.asarray(ref, dtype=np.float64)
@@ -198,7 +247,7 @@ def _calc_factor_tmm(obs, ref, libsize_obs=None, libsize_ref=None,
     else:
         nR = libsize_ref
 
-    with np.errstate(divide='ignore', invalid='ignore'):
+    with np.errstate(divide="ignore", invalid="ignore"):
         logR = np.log2(obs / nO) - np.log2(ref / nR)
         absE = (np.log2(obs / nO) + np.log2(ref / nR)) / 2
         v = (nO - obs) / nO / obs + (nR - ref) / nR / ref
@@ -220,8 +269,7 @@ def _calc_factor_tmm(obs, ref, libsize_obs=None, libsize_ref=None,
 
     rank_logR = _rank(logR)
     rank_absE = _rank(absE)
-    keep = ((rank_logR >= loL) & (rank_logR <= hiL) &
-            (rank_absE >= loS) & (rank_absE <= hiS))
+    keep = (rank_logR >= loL) & (rank_logR <= hiL) & (rank_absE >= loS) & (rank_absE <= hiS)
 
     if do_weighting:
         denom = np.sum(1 / v[keep])
@@ -235,12 +283,19 @@ def _calc_factor_tmm(obs, ref, libsize_obs=None, libsize_ref=None,
     if np.isnan(f):
         f = 0.0
 
-    return 2 ** f
+    return 2**f
 
 
-def _calc_factor_tmmwsp(obs, ref, libsize_obs=None, libsize_ref=None,
-                        logratio_trim=0.3, sum_trim=0.05, do_weighting=True,
-                        a_cutoff=-1e10):
+def _calc_factor_tmmwsp(
+    obs,
+    ref,
+    libsize_obs=None,
+    libsize_ref=None,
+    logratio_trim=0.3,
+    sum_trim=0.05,
+    do_weighting=True,
+    a_cutoff=-1e10,
+):
     """TMM with singleton pairing."""
     obs = np.asarray(obs, dtype=np.float64)
     ref = np.asarray(ref, dtype=np.float64)
@@ -282,7 +337,7 @@ def _calc_factor_tmmwsp(obs, ref, libsize_obs=None, libsize_ref=None,
 
     obs_p = obs / libsize_obs
     ref_p = ref / libsize_ref
-    with np.errstate(divide='ignore', invalid='ignore'):
+    with np.errstate(divide="ignore", invalid="ignore"):
         M = np.log2(obs_p / ref_p)
         A = 0.5 * np.log2(obs_p * ref_p)
 
@@ -318,21 +373,24 @@ def _calc_factor_tmmwsp(obs, ref, libsize_obs=None, libsize_ref=None,
     else:
         TMM = np.mean(M_keep) if len(M_keep) > 0 else 0
 
-    return 2 ** TMM
+    return 2**TMM
 
 
 def _rank(x):
     """Compute ranks (1-based, average ties)."""
     from scipy.stats import rankdata
-    return rankdata(x, method='average')
+
+    return rankdata(x, method="average")
 
 
 # =====================================================================
 # ChIP-seq normalization
 # =====================================================================
 
-def normalize_chip_to_input(input_counts, response, dispersion=0.01, niter=6,
-                            loss='p', verbose=False):
+
+def normalize_chip_to_input(
+    input_counts, response, dispersion=0.01, niter=6, loss="p", verbose=False
+):
     """Normalize ChIP-Seq read counts to input and test for enrichment.
 
     Port of edgeR's normalizeChIPtoInput.  For a single sample, aligns
@@ -383,33 +441,48 @@ def normalize_chip_to_input(input_counts, response, dispersion=0.01, niter=6,
         p_value = np.ones(len(zero))
         pmid_value = np.ones(len(zero))
         out = normalize_chip_to_input(
-            input_counts[~zero], response[~zero],
-            dispersion=dispersion, niter=niter, loss=loss, verbose=verbose,
+            input_counts[~zero],
+            response[~zero],
+            dispersion=dispersion,
+            niter=niter,
+            loss=loss,
+            verbose=verbose,
         )
-        p_value[~zero] = out['p_value']
-        pmid_value[~zero] = out['pmid_value']
+        p_value[~zero] = out["p_value"]
+        pmid_value[~zero] = out["pmid_value"]
         return {
-            'p_value': p_value,
-            'pmid_value': pmid_value,
-            'scaling_factor': out['scaling_factor'],
-            'prop_enriched': out['prop_enriched'],
+            "p_value": p_value,
+            "pmid_value": pmid_value,
+            "scaling_factor": out["scaling_factor"],
+            "prop_enriched": out["prop_enriched"],
         }
 
     n = len(response)
 
     # Special cases
     if n == 0:
-        return {'p_value': np.array([]), 'pmid_value': np.array([]),
-                'scaling_factor': np.nan, 'prop_enriched': np.nan}
+        return {
+            "p_value": np.array([]),
+            "pmid_value": np.array([]),
+            "scaling_factor": np.nan,
+            "prop_enriched": np.nan,
+        }
     if np.all(input_counts == 0):
-        return {'p_value': np.zeros(n), 'pmid_value': np.zeros(n),
-                'scaling_factor': 0.0, 'prop_enriched': 1.0}
+        return {
+            "p_value": np.zeros(n),
+            "pmid_value": np.zeros(n),
+            "scaling_factor": 0.0,
+            "prop_enriched": 1.0,
+        }
     if n == 1:
         # Avoid inf for response=0 in single-feature inputs.
         sf = 0.0 if response[0] <= 0 else float(input_counts[0] / response[0])
-        return {'p_value': np.array([1.0]), 'pmid_value': np.array([1.0]),
-                'scaling_factor': sf,
-                'prop_enriched': 0.0}
+        return {
+            "p_value": np.array([1.0]),
+            "pmid_value": np.array([1.0]),
+            "scaling_factor": sf,
+            "prop_enriched": 0.0,
+        }
 
     # Replace zero inputs with minimum positive value
     inp = input_counts.copy()
@@ -417,7 +490,7 @@ def normalize_chip_to_input(input_counts, response, dispersion=0.01, niter=6,
 
     size = 1.0 / dispersion  # NB size parameter
 
-    if loss not in ('p', 'z'):
+    if loss not in ("p", "z"):
         raise ValueError("loss must be 'p' or 'z'")
 
     def _nb_p_and_d(resp, mu):
@@ -437,13 +510,14 @@ def normalize_chip_to_input(input_counts, response, dispersion=0.01, niter=6,
 
     def _objective_z(sf, inp_v, resp_v, prop_enrich):
         from .utils import zscore_nbinom
+
         mu = sf * inp_v
         z = zscore_nbinom(resp_v, size=size, mu=mu)
         n_not_enriched = max(round(len(resp_v) * (1 - prop_enrich)), 1)
         z_sorted = np.partition(np.abs(z), n_not_enriched - 1)[:n_not_enriched]
         return np.mean(z_sorted)
 
-    objective = _objective_p if loss == 'p' else _objective_z
+    objective = _objective_p if loss == "p" else _objective_z
 
     # Starting values
     prop_enriched = 0.5
@@ -454,37 +528,41 @@ def normalize_chip_to_input(input_counts, response, dispersion=0.01, niter=6,
         scaling_factor = sf_interval[0]
         p, d = _nb_p_and_d(response, scaling_factor * inp)
         pmid = p - d / 2
-        _, adj_p, _, _ = multipletests(pmid, method='holm')
+        _, adj_p, _, _ = multipletests(pmid, method="holm")
         enriched = adj_p < 0.5
         prop_enriched = np.sum(enriched) / n
         if verbose:
             print(f"prop.enriched: {prop_enriched}  scaling.factor: {scaling_factor}")
     else:
         from scipy.optimize import minimize_scalar
+
         for _ in range(niter):
             res = minimize_scalar(
-                objective, bounds=sf_interval, method='bounded',
+                objective,
+                bounds=sf_interval,
+                method="bounded",
                 args=(inp, response, prop_enriched),
             )
             scaling_factor = res.x
             p, d = _nb_p_and_d(response, scaling_factor * inp)
             pmid = p - d / 2
-            _, adj_p, _, _ = multipletests(pmid, method='holm')
+            _, adj_p, _, _ = multipletests(pmid, method="holm")
             enriched = adj_p < 0.5
             prop_enriched = np.sum(enriched) / n
             if verbose:
                 print(f"prop.enriched: {prop_enriched}  scaling.factor: {scaling_factor}")
 
     return {
-        'p_value': p,
-        'pmid_value': pmid,
-        'scaling_factor': float(scaling_factor),
-        'prop_enriched': float(prop_enriched),
+        "p_value": p,
+        "pmid_value": pmid,
+        "scaling_factor": float(scaling_factor),
+        "prop_enriched": float(prop_enriched),
     }
 
 
-def calc_norm_offsets_for_chip(input_counts, response, dispersion=0.01,
-                               niter=6, loss='p', verbose=False):
+def calc_norm_offsets_for_chip(
+    input_counts, response, dispersion=0.01, niter=6, loss="p", verbose=False
+):
     """Compute normalization offsets for ChIP-Seq relative to input.
 
     Port of edgeR's calcNormOffsetsforChIP.  Calls
@@ -513,10 +591,10 @@ def calc_norm_offsets_for_chip(input_counts, response, dispersion=0.01,
     field set.  Otherwise returns a numeric matrix of offsets
     (genes x samples).
     """
-    is_dgelist = isinstance(response, dict) and 'counts' in response
+    is_dgelist = isinstance(response, dict) and "counts" in response
 
     if is_dgelist:
-        resp_mat = np.asarray(response['counts'], dtype=np.float64)
+        resp_mat = np.asarray(response["counts"], dtype=np.float64)
     else:
         resp_mat = np.asarray(response, dtype=np.float64)
 
@@ -536,13 +614,17 @@ def calc_norm_offsets_for_chip(input_counts, response, dispersion=0.01,
     offset = np.empty_like(resp_mat, dtype=np.float64)
     for j in range(resp_mat.shape[1]):
         out = normalize_chip_to_input(
-            inp_mat[:, j], resp_mat[:, j],
-            dispersion=dispersion, niter=niter, loss=loss, verbose=verbose,
+            inp_mat[:, j],
+            resp_mat[:, j],
+            dispersion=dispersion,
+            niter=niter,
+            loss=loss,
+            verbose=verbose,
         )
-        offset[:, j] = np.log(out['scaling_factor'] * inp_mat[:, j])
+        offset[:, j] = np.log(out["scaling_factor"] * inp_mat[:, j])
 
     if is_dgelist:
         response = dict(response)
-        response['offset'] = offset
+        response["offset"] = offset
         return response
     return offset

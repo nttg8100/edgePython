@@ -57,7 +57,7 @@ def weighted_lowess(x, y, weights=None, span=0.3, iterations=4, npts=200, delta=
         raise ValueError("Need at least two points")
 
     # Sort by x (mergesort for stable ordering matching R's order())
-    o = np.argsort(x, kind='mergesort')
+    o = np.argsort(x, kind="mergesort")
     xs = x[o].copy()
     ys = y[o].copy()
     ws = weights[o].copy()
@@ -86,17 +86,28 @@ def weighted_lowess(x, y, weights=None, span=0.3, iterations=4, npts=200, delta=
     seed_idx, nseeds = _find_seeds(xs, n, delta)
 
     # Find span limits for each seed
-    frame_start, frame_end, max_dist = _find_limits(
-        seed_idx, nseeds, xs, ws, n, span_weight)
+    frame_start, frame_end, max_dist = _find_limits(seed_idx, nseeds, xs, ws, n, span_weight)
 
     # Initialize fitted values and robustness weights
     fitted = np.zeros(n, dtype=np.float64)
     rob_w = np.ones(n, dtype=np.float64)
 
     # Run iterations in compiled code
-    _lowess_iterations(xs, ys, ws, fitted, rob_w, seed_idx, nseeds,
-                       frame_start, frame_end, max_dist, total_weight,
-                       subrange, iterations)
+    _lowess_iterations(
+        xs,
+        ys,
+        ws,
+        fitted,
+        rob_w,
+        seed_idx,
+        nseeds,
+        frame_start,
+        frame_end,
+        max_dist,
+        total_weight,
+        subrange,
+        iterations,
+    )
 
     # Map back to original (unsorted) order
     fitted_orig = np.empty(n, dtype=np.float64)
@@ -105,10 +116,10 @@ def weighted_lowess(x, y, weights=None, span=0.3, iterations=4, npts=200, delta=
     rob_orig[o] = rob_w
 
     return {
-        'fitted': fitted_orig,
-        'residuals': y - fitted_orig,
-        'weights': rob_orig,
-        'delta': delta
+        "fitted": fitted_orig,
+        "residuals": y - fitted_orig,
+        "weights": rob_orig,
+        "delta": delta,
     }
 
 
@@ -149,8 +160,8 @@ def _find_limits(seed_idx, nseeds, xs, ws, n, span_weight):
         left = curpt
         right = curpt
         cur_w = ws[curpt]
-        at_start = (left == 0)
-        at_end = (right == n - 1)
+        at_start = left == 0
+        at_end = right == n - 1
         mdist = 0.0
 
         while cur_w < span_weight and (not at_end or not at_start):
@@ -225,7 +236,7 @@ def _lowess_fit(xs, ys, ws, rw, curpt, left, right, dist):
 
     for i in range(left, right + 1):
         u = abs(xs[curpt] - xs[i]) / dist
-        tricube = (1.0 - u * u * u)
+        tricube = 1.0 - u * u * u
         tricube = tricube * tricube * tricube
         w = tricube * ws[i] * rw[i]
         allweight += w
@@ -242,7 +253,7 @@ def _lowess_fit(xs, ys, ws, rw, curpt, left, right, dist):
     covar = 0.0
     for i in range(left, right + 1):
         u = abs(xs[curpt] - xs[i]) / dist
-        tricube = (1.0 - u * u * u)
+        tricube = 1.0 - u * u * u
         tricube = tricube * tricube * tricube
         w = tricube * ws[i] * rw[i]
         temp = xs[i] - xmean
@@ -257,22 +268,33 @@ def _lowess_fit(xs, ys, ws, rw, curpt, left, right, dist):
 
 
 @njit(cache=True)
-def _lowess_iterations(xs, ys, ws, fitted, rob_w, seed_idx, nseeds,
-                       frame_start, frame_end, max_dist, total_weight,
-                       subrange, iterations):
+def _lowess_iterations(
+    xs,
+    ys,
+    ws,
+    fitted,
+    rob_w,
+    seed_idx,
+    nseeds,
+    frame_start,
+    frame_end,
+    max_dist,
+    total_weight,
+    subrange,
+    iterations,
+):
     """Run the full lowess iteration loop in compiled code."""
     n = len(xs)
     threshold = 1e-7
 
     for _it in range(iterations):
-        fitted[0] = _lowess_fit(xs, ys, ws, rob_w,
-                                0, frame_start[0], frame_end[0], max_dist[0])
+        fitted[0] = _lowess_fit(xs, ys, ws, rob_w, 0, frame_start[0], frame_end[0], max_dist[0])
         last_pt = 0
         for s in range(1, nseeds):
             pt = seed_idx[s]
-            fitted[pt] = _lowess_fit(xs, ys, ws, rob_w,
-                                     pt, frame_start[s], frame_end[s],
-                                     max_dist[s])
+            fitted[pt] = _lowess_fit(
+                xs, ys, ws, rob_w, pt, frame_start[s], frame_end[s], max_dist[s]
+            )
             if pt - last_pt > 1:
                 dx_interp = xs[pt] - xs[last_pt]
                 if dx_interp > threshold * subrange:

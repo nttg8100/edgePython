@@ -11,8 +11,16 @@ from scipy.stats import f as f_dist, chi2
 from statsmodels.stats.multitest import multipletests
 
 
-def diff_splice(glmfit, coef=None, contrast=None, geneid=None, exonid=None,
-                prior_count=0.125, robust=None, verbose=True):
+def diff_splice(
+    glmfit,
+    coef=None,
+    contrast=None,
+    geneid=None,
+    exonid=None,
+    prior_count=0.125,
+    robust=None,
+    verbose=True,
+):
     """Test for differential exon/transcript usage.
 
     Faithful port of edgeR's diffSpliceDGE. Tests whether the log-fold-change
@@ -53,25 +61,25 @@ def diff_splice(glmfit, coef=None, contrast=None, geneid=None, exonid=None,
     from .utils import expand_as_matrix
 
     # --- Detect LRT vs QL ---
-    isLRT = glmfit.get('df.prior') is None
+    isLRT = glmfit.get("df.prior") is None
     if robust is None and not isLRT:
-        df_prior = glmfit['df.prior']
-        robust = hasattr(df_prior, '__len__') and len(np.atleast_1d(df_prior)) > 1
+        df_prior = glmfit["df.prior"]
+        robust = hasattr(df_prior, "__len__") and len(np.atleast_1d(df_prior)) > 1
 
     # --- Get gene and exon IDs ---
-    exon_genes = glmfit.get('genes')
-    nexons = glmfit['counts'].shape[0]
-    design = np.asarray(glmfit['design'], dtype=np.float64)
+    exon_genes = glmfit.get("genes")
+    nexons = glmfit["counts"].shape[0]
+    design = np.asarray(glmfit["design"], dtype=np.float64)
 
     if exon_genes is None:
-        exon_genes = pd.DataFrame({'ExonID': np.arange(nexons)})
+        exon_genes = pd.DataFrame({"ExonID": np.arange(nexons)})
     else:
         exon_genes = exon_genes.copy()
 
-    genecolname = 'GeneID'
+    genecolname = "GeneID"
     if geneid is None:
         if isinstance(exon_genes, pd.DataFrame):
-            for col in ['GeneID', 'geneid', 'gene_id', 'Gene']:
+            for col in ["GeneID", "geneid", "gene_id", "Gene"]:
                 if col in exon_genes.columns:
                     geneid = exon_genes[col].values
                     genecolname = col
@@ -82,8 +90,8 @@ def diff_splice(glmfit, coef=None, contrast=None, geneid=None, exonid=None,
         genecolname = geneid
         geneid = exon_genes[geneid].values
     else:
-        exon_genes['GeneID'] = geneid
-        genecolname = 'GeneID'
+        exon_genes["GeneID"] = geneid
+        genecolname = "GeneID"
 
     exoncolname = None
     if exonid is not None:
@@ -91,8 +99,8 @@ def diff_splice(glmfit, coef=None, contrast=None, geneid=None, exonid=None,
             exoncolname = exonid
             exonid = exon_genes[exonid].values
         else:
-            exon_genes['ExonID'] = exonid
-            exoncolname = 'ExonID'
+            exon_genes["ExonID"] = exonid
+            exoncolname = "ExonID"
     else:
         exoncolname = None
 
@@ -102,26 +110,26 @@ def diff_splice(glmfit, coef=None, contrast=None, geneid=None, exonid=None,
         exonid = np.asarray(exonid)
         o = np.lexsort((exonid, geneid))
     else:
-        o = np.argsort(geneid, kind='stable')
+        o = np.argsort(geneid, kind="stable")
 
     geneid = geneid[o]
     exon_genes = exon_genes.iloc[o].reset_index(drop=True)
 
     # Subset glmfit arrays by o
-    counts = glmfit['counts'][o]
-    coefficients = glmfit['coefficients'][o]
-    deviance = glmfit['deviance'][o]
-    df_residual_orig = glmfit['df.residual'][o]
+    counts = glmfit["counts"][o]
+    coefficients = glmfit["coefficients"][o]
+    deviance = glmfit["deviance"][o]
+    df_residual_orig = glmfit["df.residual"][o]
 
     # Handle offset: could be matrix or vector
-    offset_full = glmfit['offset']
+    offset_full = glmfit["offset"]
     if offset_full.ndim == 2:
         offset_full = offset_full[o]
     else:
         offset_full = expand_as_matrix(offset_full, (nexons, counts.shape[1]))
         offset_full = offset_full[o]
 
-    weights = glmfit.get('weights')
+    weights = glmfit.get("weights")
     if weights is not None:
         if np.ndim(weights) == 2:
             weights = weights[o]
@@ -129,7 +137,7 @@ def diff_splice(glmfit, coef=None, contrast=None, geneid=None, exonid=None,
             weights = expand_as_matrix(weights, (nexons, counts.shape[1]))
             weights = weights[o]
 
-    dispersion_orig = glmfit.get('dispersion')
+    dispersion_orig = glmfit.get("dispersion")
     if dispersion_orig is not None:
         dispersion_orig = np.atleast_1d(dispersion_orig)
         if len(dispersion_orig) == nexons:
@@ -149,8 +157,10 @@ def diff_splice(glmfit, coef=None, contrast=None, geneid=None, exonid=None,
         coef_idx = 0
         beta = coefficients @ contrast
         i = contrast != 0
-        coef_name = ' '.join(f"{contrast[j]}*{coef_names[j]}" for j in range(len(contrast)) if contrast[j] != 0)
-        design = reform['design']
+        coef_name = " ".join(
+            f"{contrast[j]}*{coef_names[j]}" for j in range(len(contrast)) if contrast[j] != 0
+        )
+        design = reform["design"]
     else:
         if coef is None:
             coef_idx = nbeta - 1
@@ -218,23 +228,24 @@ def diff_splice(glmfit, coef=None, contrast=None, geneid=None, exonid=None,
     # Gene-level offset: use first row's offset (R uses offset[1,])
     gene_offset = offset_full[0, :]
 
-    fit_gene = glm_fit(gene_counts, design, dispersion=0.05,
-                       offset=gene_offset, prior_count=prior_count)
+    fit_gene = glm_fit(
+        gene_counts, design, dispersion=0.05, offset=gene_offset, prior_count=prior_count
+    )
 
     # --- Gene-level betabar, expand to exon level ---
-    gene_betabar = fit_gene['coefficients'][:, coef_idx:coef_idx+1]  # (ngenes, 1)
+    gene_betabar = fit_gene["coefficients"][:, coef_idx : coef_idx + 1]  # (ngenes, 1)
     gene_betabar_exon = gene_betabar[g]  # (nexons_kept, 1)
 
     # New offset = original offset + gene_betabar @ design[:,coef].T
-    design_coef_col = design[:, coef_idx:coef_idx+1]  # (nlib, 1)
+    design_coef_col = design[:, coef_idx : coef_idx + 1]  # (nlib, 1)
     offset_new = offset_full + gene_betabar_exon @ design_coef_col.T  # (nexons_kept, nlib)
 
     # --- Relative coefficients ---
     coefficients_rel = beta - gene_betabar_exon.ravel()
 
     # --- Dispersion for reduced model fit ---
-    if glmfit.get('average.ql.dispersion') is not None:
-        ave_ql_disp = glmfit['average.ql.dispersion']
+    if glmfit.get("average.ql.dispersion") is not None:
+        ave_ql_disp = glmfit["average.ql.dispersion"]
         if dispersion_orig is not None:
             dispersion = dispersion_orig / ave_ql_disp
         else:
@@ -243,26 +254,32 @@ def diff_splice(glmfit, coef=None, contrast=None, geneid=None, exonid=None,
         dispersion = dispersion_orig if dispersion_orig is not None else 0.05
 
     # --- Fit reduced model ---
-    fit0 = glm_fit(counts, design=design0, offset=offset_new,
-                   dispersion=dispersion, weights=weights, prior_count=0)
+    fit0 = glm_fit(
+        counts,
+        design=design0,
+        offset=offset_new,
+        dispersion=dispersion,
+        weights=weights,
+        prior_count=0,
+    )
 
     # --- Deviance differences ---
-    exon_LR = fit0['deviance'] - deviance
+    exon_LR = fit0["deviance"] - deviance
     gene_LR = np.zeros(ngenes)
     np.add.at(gene_LR, g, exon_LR)
 
-    exon_df_test = fit0['df.residual'] - df_residual_orig
+    exon_df_test = fit0["df.residual"] - df_residual_orig
     gene_df_test = np.zeros(ngenes)
     np.add.at(gene_df_test, g, exon_df_test)
 
     # --- Get adjusted df/deviance for QL path ---
     if not isLRT:
-        if glmfit.get('df.residual.zeros') is not None:
-            exon_df_residual = glmfit['df.residual.zeros'][o][exon_keep]
-            exon_deviance = glmfit['deviance'][o][exon_keep]
-        elif glmfit.get('df.residual.adj') is not None:
-            exon_df_residual = glmfit['df.residual.adj'][o][exon_keep]
-            exon_deviance = glmfit['deviance.adj'][o][exon_keep]
+        if glmfit.get("df.residual.zeros") is not None:
+            exon_df_residual = glmfit["df.residual.zeros"][o][exon_keep]
+            exon_deviance = glmfit["deviance"][o][exon_keep]
+        elif glmfit.get("df.residual.adj") is not None:
+            exon_df_residual = glmfit["df.residual.adj"][o][exon_keep]
+            exon_deviance = glmfit["deviance.adj"][o][exon_keep]
         else:
             exon_df_residual = df_residual_orig
             exon_deviance = deviance
@@ -283,9 +300,9 @@ def diff_splice(glmfit, coef=None, contrast=None, geneid=None, exonid=None,
         np.divide(gene_s2_num, gene_df_residual, out=gene_s2, where=gene_df_residual > 0)
 
         squeeze = squeeze_var(gene_s2, gene_df_residual, robust=robust)
-        gene_df_total = gene_df_residual + squeeze['df_prior']
+        gene_df_total = gene_df_residual + squeeze["df_prior"]
         gene_df_total = np.minimum(gene_df_total, np.sum(gene_df_residual))
-        gene_s2_post = squeeze['var_post']
+        gene_s2_post = squeeze["var_post"]
 
         # Exon-level F and p-values
         exon_F = exon_LR / exon_df_test / gene_s2_post[g]
@@ -295,7 +312,7 @@ def diff_splice(glmfit, coef=None, contrast=None, geneid=None, exonid=None,
         gene_p_value = f_dist.sf(gene_F, dfn=gene_df_test, dfd=gene_df_total)
 
         # Clamp exon p-values when s2.post < 1 and df.residual.zeros available
-        if glmfit.get('df.residual.zeros') is not None:
+        if glmfit.get("df.residual.zeros") is not None:
             i = gene_s2_post[g] < 1
             if np.any(i):
                 chisq_pvalue = chi2.sf(exon_LR[i], df=exon_df_test[i])
@@ -330,37 +347,37 @@ def diff_splice(glmfit, coef=None, contrast=None, geneid=None, exonid=None,
 
     # --- Build output ---
     result = {}
-    result['comparison'] = coef_name
-    result['design'] = design
-    result['coefficients'] = coefficients_rel
-    result['genes'] = exon_genes
-    result['genecolname'] = genecolname
-    result['exoncolname'] = exoncolname
-    result['exon.df.test'] = exon_df_test
+    result["comparison"] = coef_name
+    result["design"] = design
+    result["coefficients"] = coefficients_rel
+    result["genes"] = exon_genes
+    result["genecolname"] = genecolname
+    result["exoncolname"] = exoncolname
+    result["exon.df.test"] = exon_df_test
 
     if isLRT:
-        result['exon.LR'] = exon_LR
+        result["exon.LR"] = exon_LR
     else:
-        result['exon.F'] = exon_F
+        result["exon.F"] = exon_F
 
-    result['exon.p.value'] = exon_p_value
-    result['gene.df.test'] = gene_df_test
+    result["exon.p.value"] = exon_p_value
+    result["gene.df.test"] = gene_df_test
 
     if isLRT:
-        result['gene.LR'] = gene_LR
+        result["gene.LR"] = gene_LR
     else:
-        result['gene.df.prior'] = squeeze['df_prior']
-        result['gene.df.residual'] = gene_df_residual
-        result['gene.F'] = gene_F
+        result["gene.df.prior"] = squeeze["df_prior"]
+        result["gene.df.residual"] = gene_df_residual
+        result["gene.F"] = gene_F
 
-    result['gene.p.value'] = gene_p_value
-    result['gene.Simes.p.value'] = gene_Simes_p_value
+    result["gene.p.value"] = gene_p_value
+    result["gene.Simes.p.value"] = gene_Simes_p_value
 
     # --- Gene-level genes table ---
     exon_lastexon = gene_boundaries - 1
     exon_firstexon = exon_lastexon - gene_nexons + 1
     gene_genes = exon_genes.iloc[exon_lastexon].copy().reset_index(drop=True)
-    gene_genes['NExons'] = gene_nexons
+    gene_genes["NExons"] = gene_nexons
 
     # Identify gene-level columns (duplicated across all exons in a gene)
     no = np.zeros(len(exon_genes), dtype=bool)
@@ -401,14 +418,13 @@ def diff_splice(glmfit, coef=None, contrast=None, geneid=None, exonid=None,
 
     gene_level_cols = [col for col, isg in zip(exon_genes.columns, isgenelevel) if isg]
     gene_genes = exon_genes[gene_level_cols].iloc[exon_lastexon].copy().reset_index(drop=True)
-    gene_genes['NExons'] = gene_nexons
-    result['gene.genes'] = gene_genes
+    gene_genes["NExons"] = gene_nexons
+    result["gene.genes"] = gene_genes
 
     return result
 
 
-def diff_splice_dge(y, geneid=None, exonid=None, group=None,
-                     dispersion='auto', prior_count=0.125):
+def diff_splice_dge(y, geneid=None, exonid=None, group=None, dispersion="auto", prior_count=0.125):
     """Test for differential exon usage between groups using exact test.
 
     Port of edgeR's diffSpliceDGE.
@@ -433,23 +449,24 @@ def diff_splice_dge(y, geneid=None, exonid=None, group=None,
     from .exact_test import exact_test
 
     if group is None and isinstance(y, dict):
-        group = y['samples']['group'].values
+        group = y["samples"]["group"].values
 
     unique_groups = np.unique(group)
     if len(unique_groups) != 2:
         raise ValueError("Exactly 2 groups required for diffSpliceDGE")
 
     # Run exact test
-    result = exact_test(y, pair=unique_groups[:2].tolist(), dispersion=dispersion,
-                        prior_count=prior_count)
+    result = exact_test(
+        y, pair=unique_groups[:2].tolist(), dispersion=dispersion, prior_count=prior_count
+    )
 
     # Get gene IDs
-    if isinstance(geneid, str) and y.get('genes') is not None:
-        geneid = y['genes'][geneid].values
+    if isinstance(geneid, str) and y.get("genes") is not None:
+        geneid = y["genes"][geneid].values
     geneid = np.asarray(geneid)
 
-    logFC = result['table']['logFC'].values
-    p_exon = result['table']['PValue'].values
+    logFC = result["table"]["logFC"].values
+    p_exon = result["table"]["PValue"].values
 
     # Simes aggregation
     unique_genes = np.unique(geneid)
@@ -466,17 +483,14 @@ def diff_splice_dge(y, geneid=None, exonid=None, group=None,
         p_sorted = np.sort(p_exon[mask])
         gene_pvalue[g_idx] = min(np.min(p_sorted * n_exons / np.arange(1, n_exons + 1)), 1.0)
 
-    _, gene_fdr, _, _ = multipletests(gene_pvalue, method='fdr_bh')
+    _, gene_fdr, _, _ = multipletests(gene_pvalue, method="fdr_bh")
 
     return {
-        'gene.table': pd.DataFrame({
-            'GeneID': unique_genes,
-            'NExons': gene_nexons,
-            'PValue': gene_pvalue,
-            'FDR': gene_fdr
-        }),
-        'exon.table': result['table'],
-        'comparison': result.get('comparison')
+        "gene.table": pd.DataFrame(
+            {"GeneID": unique_genes, "NExons": gene_nexons, "PValue": gene_pvalue, "FDR": gene_fdr}
+        ),
+        "exon.table": result["table"],
+        "comparison": result.get("comparison"),
     }
 
 
@@ -498,8 +512,8 @@ def splice_variants(y, geneids, dispersion=None):
     -------
     DataFrame with splice variant statistics.
     """
-    if isinstance(y, dict) and 'counts' in y:
-        counts = y['counts']
+    if isinstance(y, dict) and "counts" in y:
+        counts = y["counts"]
     else:
         counts = np.asarray(y, dtype=np.float64)
 
@@ -511,8 +525,7 @@ def splice_variants(y, geneids, dispersion=None):
         mask = geneids == gene
         n_exons = np.sum(mask)
         if n_exons <= 1:
-            results.append({'GeneID': gene, 'NExons': n_exons,
-                           'Chisq': 0, 'PValue': 1.0})
+            results.append({"GeneID": gene, "NExons": n_exons, "Chisq": 0, "PValue": 1.0})
             continue
 
         gene_counts = counts[mask]
@@ -522,8 +535,7 @@ def splice_variants(y, geneids, dispersion=None):
         grand_total = gene_counts.sum()
 
         if grand_total == 0:
-            results.append({'GeneID': gene, 'NExons': n_exons,
-                           'Chisq': 0, 'PValue': 1.0})
+            results.append({"GeneID": gene, "NExons": n_exons, "Chisq": 0, "PValue": 1.0})
             continue
 
         expected = np.outer(row_totals, col_totals) / grand_total
@@ -532,7 +544,6 @@ def splice_variants(y, geneids, dispersion=None):
         df = (n_exons - 1) * (gene_counts.shape[1] - 1)
         p_value = chi2.sf(chi_sq, df) if df > 0 else 1.0
 
-        results.append({'GeneID': gene, 'NExons': n_exons,
-                       'Chisq': chi_sq, 'PValue': p_value})
+        results.append({"GeneID": gene, "NExons": n_exons, "Chisq": chi_sq, "PValue": p_value})
 
     return pd.DataFrame(results)

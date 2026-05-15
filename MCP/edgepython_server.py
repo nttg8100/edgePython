@@ -46,14 +46,14 @@ mcp = FastMCP(
 
 # Module-level state — mutated by tools across a session.
 _state: dict = {
-    "dgelist": None,       # Current DGEList
-    "design": None,        # Design matrix (ndarray)
-    "design_info": None,   # Column names for the design matrix
-    "fit": None,           # Fitted QL-GLM (DGEGLM-like dict)
-    "glm_fit": None,       # Fitted GLM (non-QL)
-    "results": {},         # name → DGELRT-like dict
-    "last_result": None,   # Name of most recent test result
-    "voom": None,          # Most recent voom/voomLmFit output dict
+    "dgelist": None,  # Current DGEList
+    "design": None,  # Design matrix (ndarray)
+    "design_info": None,  # Column names for the design matrix
+    "fit": None,  # Fitted QL-GLM (DGEGLM-like dict)
+    "glm_fit": None,  # Fitted GLM (non-QL)
+    "results": {},  # name → DGELRT-like dict
+    "last_result": None,  # Name of most recent test result
+    "voom": None,  # Most recent voom/voomLmFit output dict
     "filtered": False,
     "normalized": False,
     "dispersions_estimated": False,
@@ -67,9 +67,7 @@ _state: dict = {
 def _require(key: str, label: str):
     """Raise if a pipeline stage hasn't been completed yet."""
     if _state[key] is None:
-        raise ValueError(
-            f"No {label} available. Run the appropriate step first."
-        )
+        raise ValueError(f"No {label} available. Run the appropriate step first.")
 
 
 def _gene_name(row):
@@ -152,18 +150,38 @@ def _infer_analysis_context(
     if src == "10x" or "10x" in clue_text or "cellranger" in clue_text:
         return "single_cell_10x", "10x/cellranger-like source/path"
 
-    if src == "anndata" or any(s.endswith('.h5ad') for s in clues):
+    if src == "anndata" or any(s.endswith(".h5ad") for s in clues):
         # Could be 10x-derived or non-10x single-cell.
         if "10x" in clue_text or "cellranger" in clue_text:
             return "single_cell_10x", "AnnData with 10x/cellranger-like clues"
         return "single_cell", "AnnData source/path"
 
     # SMART-seq / random-primed style clues -> bulk-like transcriptome input.
-    if any(k in clue_text for k in ("smartseq", "smart-seq", "smart_seq", "random primed", "random_primed", "random-primed")):
+    if any(
+        k in clue_text
+        for k in (
+            "smartseq",
+            "smart-seq",
+            "smart_seq",
+            "random primed",
+            "random_primed",
+            "random-primed",
+        )
+    ):
         return "bulk", "SMART-seq/random-primed-like clues"
 
     # Source families typically used for bulk transcript quantification.
-    if src in {"kallisto", "salmon", "rsem", "oarfish", "table", "matrix", "dataframe", "sparse", "rds"}:
+    if src in {
+        "kallisto",
+        "salmon",
+        "rsem",
+        "oarfish",
+        "table",
+        "matrix",
+        "dataframe",
+        "sparse",
+        "rds",
+    }:
         return "bulk", f"source='{src}' typically bulk/pseudobulk-like"
 
     # Sample-name heuristic for 10x-like barcodes.
@@ -177,7 +195,10 @@ def _infer_analysis_context(
                     barcode_hits += 1
             frac = barcode_hits / len(names)
             if len(names) >= 100 and frac >= 0.5:
-                return "single_cell_10x", f"sample names look like 10x barcodes ({barcode_hits}/{len(names)})"
+                return (
+                    "single_cell_10x",
+                    f"sample names look like 10x barcodes ({barcode_hits}/{len(names)})",
+                )
 
     if default_bulk:
         return "bulk", "bulk assumed from count-matrix workflow"
@@ -255,6 +276,7 @@ def _resolve_gene_exon_ids(
 # ---------------------------------------------------------------------------
 # Tool 1: load_data
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def load_data(
@@ -355,10 +377,11 @@ def load_data(
     ]
     if group is not None:
         from collections import Counter
+
         gc = Counter(group)
-        lines.append(f"Groups ({group_column}): " + ", ".join(
-            f"{k} (n={v})" for k, v in gc.items()
-        ))
+        lines.append(
+            f"Groups ({group_column}): " + ", ".join(f"{k} (n={v})" for k, v in gc.items())
+        )
     lines.append(
         f"Library sizes: {int(lib_sizes.min()):,} – {int(lib_sizes.max()):,} "
         f"(median {int(np.median(lib_sizes)):,})"
@@ -374,6 +397,7 @@ def load_data(
 # ---------------------------------------------------------------------------
 # Tool 1b: load_data_auto
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def load_data_auto(
@@ -490,6 +514,7 @@ def load_data_auto(
 # Tool 2: describe
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool()
 def describe() -> str:
     """Report the current state of the analysis pipeline."""
@@ -501,7 +526,9 @@ def describe() -> str:
 
     counts = d["counts"]
     lines.append(f"Data: {counts.shape[0]:,} genes × {counts.shape[1]} samples")
-    lines.append(f"Samples: {', '.join(d.get('_sample_names', [str(i) for i in range(counts.shape[1])]))}")
+    lines.append(
+        f"Samples: {', '.join(d.get('_sample_names', [str(i) for i in range(counts.shape[1])]))}"
+    )
     lines.append(f"Filtered: {'yes' if _state['filtered'] else 'no'}")
     lines.append(f"Normalized: {'yes' if _state['normalized'] else 'no'}")
 
@@ -560,6 +587,7 @@ def describe() -> str:
 # Tool 2b: reset_state
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool()
 def reset_state() -> str:
     """Reset all pipeline state."""
@@ -585,6 +613,7 @@ def reset_state() -> str:
 # Tool 3: filter_genes
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool()
 def filter_genes(
     min_count: int = 10,
@@ -603,9 +632,7 @@ def filter_genes(
     d = _state["dgelist"]
 
     group = d["samples"].get("group")
-    keep = ep.filter_by_expr(
-        d, group=group, min_count=min_count, min_total_count=min_total_count
-    )
+    keep = ep.filter_by_expr(d, group=group, min_count=min_count, min_total_count=min_total_count)
 
     n_before = d["counts"].shape[0]
     n_after = int(keep.sum())
@@ -630,15 +657,13 @@ def filter_genes(
     # Recompute lib sizes after filtering
     d["samples"]["lib.size"] = d["counts"].sum(axis=0).astype(np.float64)
 
-    return (
-        f"Filtered: {n_before:,} → {n_after:,} genes "
-        f"({n_before - n_after:,} removed)"
-    )
+    return f"Filtered: {n_before:,} → {n_after:,} genes ({n_before - n_after:,} removed)"
 
 
 # ---------------------------------------------------------------------------
 # Tool 4: normalize
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def normalize(method: str = "TMM") -> str:
@@ -664,7 +689,7 @@ def normalize(method: str = "TMM") -> str:
         "Sample | Norm Factor | Effective Lib Size",
         "-------|------------|-------------------",
     ]
-    names = d.get("_sample_names", [f"S{i+1}" for i in range(len(nf))])
+    names = d.get("_sample_names", [f"S{i + 1}" for i in range(len(nf))])
     for i, name in enumerate(names):
         lines.append(f"{name} | {nf[i]:.4f} | {int(eff[i]):,}")
 
@@ -674,6 +699,7 @@ def normalize(method: str = "TMM") -> str:
 # ---------------------------------------------------------------------------
 # Tool 4b: normalize_chip — ChIP-Seq normalization to input
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def normalize_chip(
@@ -709,15 +735,18 @@ def normalize_chip(
         )
 
     d = ep.calc_norm_offsets_for_chip(
-        inp_mat, d, dispersion=dispersion, niter=niter, loss=loss,
+        inp_mat,
+        d,
+        dispersion=dispersion,
+        niter=niter,
+        loss=loss,
     )
     _state["dgelist"] = d
     _state["voom"] = None
 
     lines = [
         f"ChIP normalization applied (dispersion={dispersion}, loss='{loss}').",
-        f"Offset matrix set ({d['offset'].shape[0]:,} genes × "
-        f"{d['offset'].shape[1]} samples).",
+        f"Offset matrix set ({d['offset'].shape[0]:,} genes × {d['offset'].shape[1]} samples).",
     ]
     return "\n".join(lines)
 
@@ -725,6 +754,7 @@ def normalize_chip(
 # ---------------------------------------------------------------------------
 # Tool 4c: chip_enrichment_test — per-sample ChIP enrichment p-values
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def chip_enrichment_test(
@@ -753,18 +783,20 @@ def chip_enrichment_test(
     inp_mat = inp_df.values.astype(np.float64)
 
     if sample < 0 or sample >= d["counts"].shape[1]:
-        raise ValueError(f"sample must be 0..{d['counts'].shape[1]-1}")
+        raise ValueError(f"sample must be 0..{d['counts'].shape[1] - 1}")
 
     out = ep.normalize_chip_to_input(
-        inp_mat[:, sample], d["counts"][:, sample],
-        dispersion=dispersion, niter=niter,
+        inp_mat[:, sample],
+        d["counts"][:, sample],
+        dispersion=dispersion,
+        niter=niter,
     )
 
     gene_ids = d.get("_gene_ids")
     if gene_ids is None:
         gene_ids = [str(i) for i in range(d["counts"].shape[0])]
 
-    order = np.argsort(out['p_value'])
+    order = np.argsort(out["p_value"])
     n_show = min(n_top, len(order))
 
     names = d.get("_sample_names", [f"S{i}" for i in range(d["counts"].shape[1])])
@@ -779,10 +811,7 @@ def chip_enrichment_test(
     ]
     for i in range(n_show):
         idx = order[i]
-        lines.append(
-            f"{gene_ids[idx]} | {out['p_value'][idx]:.4e} | "
-            f"{out['pmid_value'][idx]:.4e}"
-        )
+        lines.append(f"{gene_ids[idx]} | {out['p_value'][idx]:.4e} | {out['pmid_value'][idx]:.4e}")
 
     return "\n".join(lines)
 
@@ -790,6 +819,7 @@ def chip_enrichment_test(
 # ---------------------------------------------------------------------------
 # Tool 5: set_design
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def set_design(formula: str) -> str:
@@ -811,6 +841,7 @@ def set_design(formula: str) -> str:
 
     # Extract column names from patsy
     import patsy
+
     dinfo = patsy.dmatrix(formula, data=samples, return_type="dataframe")
     col_names = list(dinfo.columns)
 
@@ -834,6 +865,7 @@ def set_design(formula: str) -> str:
 # ---------------------------------------------------------------------------
 # Tool 5b: set_design_matrix
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def set_design_matrix(matrix: list, columns: list) -> str:
@@ -879,6 +911,7 @@ def set_design_matrix(matrix: list, columns: list) -> str:
 # Tool 6: estimate_dispersion
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool()
 def estimate_dispersion(robust: bool = True) -> str:
     """Estimate NB dispersions (common, trended, tagwise).
@@ -919,6 +952,7 @@ def estimate_dispersion(robust: bool = True) -> str:
 # ---------------------------------------------------------------------------
 # Tool 6b: estimate_glm_robust_dispersion
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def estimate_glm_robust_dispersion(
@@ -972,6 +1006,7 @@ def estimate_glm_robust_dispersion(
 # ---------------------------------------------------------------------------
 # Tool 6c: voom_transform
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def voom_transform(
@@ -1040,6 +1075,7 @@ def voom_transform(
 # Tool 7: fit_model
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool()
 def fit_model(robust: bool = True) -> str:
     """Fit a quasi-likelihood negative binomial GLM.
@@ -1083,6 +1119,7 @@ def fit_model(robust: bool = True) -> str:
 # Tool 7b: fit_glm
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool()
 def fit_glm() -> str:
     """Fit a negative binomial GLM (non-QL)."""
@@ -1107,6 +1144,7 @@ def fit_glm() -> str:
 # Tool 8: test_contrast
 # ---------------------------------------------------------------------------
 
+
 def _parse_contrast(contrast_str: str, col_names: list) -> np.ndarray:
     """Parse a contrast string like 'A - B' into a numeric vector.
 
@@ -1125,18 +1163,18 @@ def _parse_contrast(contrast_str: str, col_names: list) -> np.ndarray:
         clean_map[cn] = i  # exact name, e.g. 'group[A]'
 
         # Strip patsy treatment-coded wrapper: 'group[T.xxx]' → 'xxx'
-        m = re.match(r'^(.+)\[T\.\s*(.+)\]$', cn)
+        m = re.match(r"^(.+)\[T\.\s*(.+)\]$", cn)
         if m:
             prefix, val = m.group(1), m.group(2)
-            clean_map[val] = i              # 'xxx'
-            clean_map[prefix + val] = i     # 'groupxxx'
+            clean_map[val] = i  # 'xxx'
+            clean_map[prefix + val] = i  # 'groupxxx'
 
         # Strip patsy no-intercept wrapper: 'group[xxx]' → 'xxx'
-        m2 = re.match(r'^(.+)\[(.+)\]$', cn)
+        m2 = re.match(r"^(.+)\[(.+)\]$", cn)
         if m2:
             prefix, val = m2.group(1), m2.group(2)
-            clean_map[val] = i              # 'xxx'  (e.g. 'A')
-            clean_map[prefix + val] = i     # 'groupA'
+            clean_map[val] = i  # 'xxx'  (e.g. 'A')
+            clean_map[prefix + val] = i  # 'groupA'
 
     def _find_col(term: str) -> int:
         term = term.strip()
@@ -1152,8 +1190,8 @@ def _parse_contrast(contrast_str: str, col_names: list) -> np.ndarray:
         )
 
     # Try simple 'A - B' pattern first
-    parts = re.split(r'\s*-\s*', contrast_str)
-    if len(parts) == 2 and '(' not in contrast_str and '+' not in contrast_str:
+    parts = re.split(r"\s*-\s*", contrast_str)
+    if len(parts) == 2 and "(" not in contrast_str and "+" not in contrast_str:
         i_pos = _find_col(parts[0])
         i_neg = _find_col(parts[1])
         contrast[i_pos] = 1
@@ -1163,22 +1201,21 @@ def _parse_contrast(contrast_str: str, col_names: list) -> np.ndarray:
     # General parser: split into +/- terms
     # Add '+' at start if not starting with '-'
     s = contrast_str.strip()
-    if not s.startswith('-'):
-        s = '+' + s
+    if not s.startswith("-"):
+        s = "+" + s
 
     # Tokenize: find all (+/-)(coefficient_or_group)
-    tokens = re.findall(r'([+-])\s*(?:(\d*\.?\d*)\s*\*?\s*)?([A-Za-z_][\w.]*)', s)
+    tokens = re.findall(r"([+-])\s*(?:(\d*\.?\d*)\s*\*?\s*)?([A-Za-z_][\w.]*)", s)
     for sign, coeff, name in tokens:
         idx = _find_col(name)
         c = float(coeff) if coeff else 1.0
-        if sign == '-':
+        if sign == "-":
             c = -c
         contrast[idx] += c
 
     if np.all(contrast == 0):
         raise ValueError(
-            f"Could not parse contrast '{contrast_str}'. "
-            f"Available columns: {col_names}"
+            f"Could not parse contrast '{contrast_str}'. Available columns: {col_names}"
         )
 
     return contrast
@@ -1256,6 +1293,7 @@ def test_contrast(
 # Tool 8b: test_coef
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool()
 def test_coef(
     coef: int,
@@ -1305,6 +1343,7 @@ def test_coef(
 # ---------------------------------------------------------------------------
 # Tool 8c: glm_lrt_test
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def glm_lrt_test(
@@ -1358,6 +1397,7 @@ def glm_lrt_test(
 # ---------------------------------------------------------------------------
 # Tool 8d: exact_test
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def exact_test(
@@ -1420,6 +1460,7 @@ def exact_test(
 # Tool 8e: dtu_diff_splice_dge
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool()
 def dtu_diff_splice_dge(
     gene_column: Optional[str] = None,
@@ -1476,6 +1517,7 @@ def dtu_diff_splice_dge(
 # Tool 8f: dtu_splice_variants
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool()
 def dtu_splice_variants(
     gene_column: Optional[str] = None,
@@ -1512,8 +1554,7 @@ def dtu_splice_variants(
             gid = gid[:21] + ".."
         fdr_val = float(row["FDR"]) if "FDR" in row.index else np.nan
         lines.append(
-            f"{gid:<24} {int(row['NExons']):>8d} "
-            f"{float(row['PValue']):>12.2e} {fdr_val:>12.2e}"
+            f"{gid:<24} {int(row['NExons']):>8d} {float(row['PValue']):>12.2e} {fdr_val:>12.2e}"
         )
     return "\n".join(lines)
 
@@ -1521,6 +1562,7 @@ def dtu_splice_variants(
 # ---------------------------------------------------------------------------
 # Tool 9: get_top_genes
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def get_top_genes(
@@ -1569,7 +1611,15 @@ def get_top_genes(
         gene = _gene_name(row)
         if len(gene) > 19:
             gene = gene[:17] + ".."
-        sig_mark = "***" if row["FDR"] < 0.001 else "**" if row["FDR"] < 0.01 else "*" if row["FDR"] < fdr_threshold else ""
+        sig_mark = (
+            "***"
+            if row["FDR"] < 0.001
+            else "**"
+            if row["FDR"] < 0.01
+            else "*"
+            if row["FDR"] < fdr_threshold
+            else ""
+        )
         line = f"{gene:<20} {row['logFC']:>8.3f} {row['logCPM']:>8.2f}"
         if stat_col:
             line += f" {row[stat_col]:>8.2f}"
@@ -1583,6 +1633,7 @@ def get_top_genes(
 # ---------------------------------------------------------------------------
 # Tool 9b: get_result_table
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def get_result_table(
@@ -1624,6 +1675,7 @@ def get_result_table(
 # Tool 9c: save_results
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool()
 def save_results(
     output_path: str,
@@ -1650,6 +1702,7 @@ def save_results(
 # Tool 10: generate_plot
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool()
 def generate_plot(
     plot_type: str,
@@ -1672,6 +1725,7 @@ def generate_plot(
             in the current working directory.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -1738,8 +1792,7 @@ def generate_plot(
 
         # Color by significance
         colors = np.where(
-            (fdr < 0.05) & (logfc > 0), "red",
-            np.where((fdr < 0.05) & (logfc < 0), "blue", "grey")
+            (fdr < 0.05) & (logfc > 0), "red", np.where((fdr < 0.05) & (logfc < 0), "blue", "grey")
         )
         ax.scatter(logfc, neg_log_p, c=colors, s=4, alpha=0.5)
         ax.set_xlabel("log2 fold change")
@@ -1786,9 +1839,11 @@ def generate_plot(
         # Z-score per gene
         mat_z = (mat - mat.mean(axis=1, keepdims=True)) / (mat.std(axis=1, keepdims=True) + 1e-10)
 
-        fig, ax = plt.subplots(figsize=(max(6, len(d.get("_sample_names", [])) * 0.6), max(6, len(idx) * 0.3)))
+        fig, ax = plt.subplots(
+            figsize=(max(6, len(d.get("_sample_names", [])) * 0.6), max(6, len(idx) * 0.3))
+        )
         im = ax.imshow(mat_z, aspect="auto", cmap="RdBu_r", vmin=-3, vmax=3)
-        sample_names = d.get("_sample_names", [f"S{i+1}" for i in range(mat.shape[1])])
+        sample_names = d.get("_sample_names", [f"S{i + 1}" for i in range(mat.shape[1])])
         ax.set_xticks(range(len(sample_names)))
         ax.set_xticklabels(sample_names, rotation=45, ha="right", fontsize=8)
         ax.set_yticks(range(len(gene_labels)))
@@ -1805,11 +1860,11 @@ def generate_plot(
 # ===========================================================================
 
 _sc_state: dict = {
-    "counts": None,       # genes × cells ndarray
-    "design": None,       # cells × predictors DataFrame
-    "sample": None,       # per-cell sample IDs (array)
-    "gene_names": None,   # gene name array
-    "fit": None,          # glm_sc_fit result dict
+    "counts": None,  # genes × cells ndarray
+    "design": None,  # cells × predictors DataFrame
+    "sample": None,  # per-cell sample IDs (array)
+    "gene_names": None,  # gene name array
+    "fit": None,  # glm_sc_fit result dict
     "n_cells": 0,
     "n_genes": 0,
     "n_samples": 0,
@@ -1819,6 +1874,7 @@ _sc_state: dict = {
 # ---------------------------------------------------------------------------
 # SC Tool 1: load_sc_data
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def load_sc_data(
@@ -1872,11 +1928,11 @@ def load_sc_data(
             n_obs = len(indptr) - 1
             # Gene names from raw
             var_key = "index" if "index" in h5["raw"]["var"] else "_index"
-            gene_names = np.array([g.decode() if isinstance(g, bytes) else g
-                                   for g in h5["raw"]["var"][var_key][:]])
+            gene_names = np.array(
+                [g.decode() if isinstance(g, bytes) else g for g in h5["raw"]["var"][var_key][:]]
+            )
             n_var = len(gene_names)
-            counts_csr = sp.csr_matrix((raw_data, indices, indptr),
-                                       shape=(n_obs, n_var))
+            counts_csr = sp.csr_matrix((raw_data, indices, indptr), shape=(n_obs, n_var))
             counts_dense = None
     else:
         x_grp = h5["X"]
@@ -1896,22 +1952,24 @@ def load_sc_data(
             indptr = h5["X"]["indptr"][:]
             n_obs = len(indptr) - 1
             var_key = "index" if "index" in h5["var"] else "_index"
-            gene_names = np.array([g.decode() if isinstance(g, bytes) else g
-                                   for g in h5["var"][var_key][:]])
+            gene_names = np.array(
+                [g.decode() if isinstance(g, bytes) else g for g in h5["var"][var_key][:]]
+            )
             n_var = len(gene_names)
-            counts_csr = sp.csr_matrix((raw_data, indices, indptr),
-                                       shape=(n_obs, n_var))
+            counts_csr = sp.csr_matrix((raw_data, indices, indptr), shape=(n_obs, n_var))
             counts_dense = None
 
     # Gene names (if not set from raw)
     if layer == "raw" and "raw" in h5:
         var_key = "index" if "index" in h5["raw"]["var"] else "_index"
-        gene_names = np.array([g.decode() if isinstance(g, bytes) else g
-                               for g in h5["raw"]["var"][var_key][:]])
+        gene_names = np.array(
+            [g.decode() if isinstance(g, bytes) else g for g in h5["raw"]["var"][var_key][:]]
+        )
     elif "gene_names" not in dir() or gene_names is None:
         var_key = "index" if "index" in h5["var"] else "_index"
-        gene_names = np.array([g.decode() if isinstance(g, bytes) else g
-                               for g in h5["var"][var_key][:]])
+        gene_names = np.array(
+            [g.decode() if isinstance(g, bytes) else g for g in h5["var"][var_key][:]]
+        )
 
     # --- Read obs metadata ---
     obs_keys = [k for k in h5["obs"].keys() if k != "__categories"]
@@ -1919,16 +1977,14 @@ def load_sc_data(
     if "__categories" in h5["obs"]:
         for cat_name in h5["obs"]["__categories"]:
             raw_cats = h5["obs"]["__categories"][cat_name][:]
-            categories[cat_name] = [c.decode() if isinstance(c, bytes) else c
-                                    for c in raw_cats]
+            categories[cat_name] = [c.decode() if isinstance(c, bytes) else c for c in raw_cats]
 
     def _decode_col(name):
         codes = h5["obs"][name][:]
         if name in categories:
             return np.array([categories[name][c] for c in codes])
         if codes.dtype.kind in ("S", "O"):
-            return np.array([c.decode() if isinstance(c, bytes) else c
-                             for c in codes])
+            return np.array([c.decode() if isinstance(c, bytes) else c for c in codes])
         return codes
 
     sample_ids = _decode_col(sample_col)
@@ -1984,6 +2040,7 @@ def load_sc_data(
 # SC Tool 2: set_sc_design
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool()
 def set_sc_design(
     covariates: dict,
@@ -2005,24 +2062,20 @@ def set_sc_design(
     for col in cols:
         arr = np.asarray(covariates[col], dtype=np.float64)
         if len(arr) != n:
-            raise ValueError(
-                f"Column '{col}' has {len(arr)} values but expected {n} cells."
-            )
+            raise ValueError(f"Column '{col}' has {len(arr)} values but expected {n} cells.")
         arrays[col] = arr
 
     design = pd.DataFrame(arrays, columns=cols)
     _sc_state["design"] = design
     _sc_state["fit"] = None
 
-    return (
-        f"Design matrix set: {n:,} cells × {len(cols)} predictors\n"
-        f"Columns: {', '.join(cols)}"
-    )
+    return f"Design matrix set: {n:,} cells × {len(cols)} predictors\nColumns: {', '.join(cols)}"
 
 
 # ---------------------------------------------------------------------------
 # SC Tool 3: fit_sc_model
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def fit_sc_model(
@@ -2049,6 +2102,7 @@ def fit_sc_model(
     gene_names = _sc_state["gene_names"]
 
     import time
+
     t0 = time.perf_counter()
 
     fit = ep.glm_sc_fit(
@@ -2080,6 +2134,7 @@ def fit_sc_model(
 # ---------------------------------------------------------------------------
 # SC Tool 4: test_sc_coef
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def test_sc_coef(
@@ -2147,6 +2202,7 @@ def test_sc_coef(
 # SC Tool 5: get_sc_top_genes
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool()
 def get_sc_top_genes(
     coef: Optional[str] = None,
@@ -2171,8 +2227,10 @@ def get_sc_top_genes(
     tt = ep.top_tags(fit, n=n, coef=c)
     table = tt["table"]
 
-    label = coef if coef is not None else (
-        f"coefficient {coef_index}" if coef_index is not None else "last coefficient"
+    label = (
+        coef
+        if coef is not None
+        else (f"coefficient {coef_index}" if coef_index is not None else "last coefficient")
     )
     lines = [
         f"Top {min(n, len(table))} genes for {label}:",
@@ -2185,8 +2243,15 @@ def get_sc_top_genes(
         if len(gene) > 29:
             gene = gene[:27] + ".."
         fdr_val = row["FDR"]
-        sig = "***" if fdr_val < 0.001 else "**" if fdr_val < 0.01 else \
-              "*" if fdr_val < fdr_threshold else ""
+        sig = (
+            "***"
+            if fdr_val < 0.001
+            else "**"
+            if fdr_val < 0.01
+            else "*"
+            if fdr_val < fdr_threshold
+            else ""
+        )
         lines.append(
             f"{gene:<30} {row['logFC']:>8.3f} {row['SE']:>8.3f} "
             f"{row['z']:>8.2f} {row['PValue']:>10.2e} {fdr_val:>10.2e} {sig:>3}"
@@ -2198,6 +2263,7 @@ def get_sc_top_genes(
 # ---------------------------------------------------------------------------
 # SC Tool 6: describe_sc
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def describe_sc() -> str:
@@ -2222,10 +2288,7 @@ def describe_sc() -> str:
     if fit is not None:
         n_tested = fit["coefficients"].shape[0]
         n_conv = int((fit["convergence"] == 1).sum())
-        lines.append(
-            f"Model: NEBULA-LN, {n_tested:,} genes tested, "
-            f"{n_conv:,} converged"
-        )
+        lines.append(f"Model: NEBULA-LN, {n_tested:,} genes tested, {n_conv:,} converged")
         lines.append(f"Predictors: {', '.join(fit['predictor_names'])}")
     else:
         lines.append("Model: not fitted")
@@ -2236,6 +2299,7 @@ def describe_sc() -> str:
 # ---------------------------------------------------------------------------
 # SC Tool 7: save_sc_results
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def save_sc_results(
@@ -2270,15 +2334,13 @@ def save_sc_results(
     valid_fdr = table["FDR"].dropna()
     n_sig = int((valid_fdr < 0.05).sum())
 
-    return (
-        f"Saved {len(table):,} genes to {output_path}\n"
-        f"DE at FDR < 0.05: {n_sig}"
-    )
+    return f"Saved {len(table):,} genes to {output_path}\nDE at FDR < 0.05: {n_sig}"
 
 
 # ---------------------------------------------------------------------------
 # SC Tool 8: reset_sc_state
 # ---------------------------------------------------------------------------
+
 
 @mcp.tool()
 def reset_sc_state() -> str:

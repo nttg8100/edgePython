@@ -18,8 +18,13 @@ from .utils import drop_empty_levels, binom_test
 @njit(cache=True)
 def _nb_logpmf(k, size, prob):
     """Numba-compatible NB log-PMF using math.lgamma."""
-    return (math.lgamma(k + size) - math.lgamma(k + 1.0) - math.lgamma(size)
-            + size * math.log(prob) + k * math.log(1.0 - prob))
+    return (
+        math.lgamma(k + size)
+        - math.lgamma(k + 1.0)
+        - math.lgamma(size)
+        + size * math.log(prob)
+        + k * math.log(1.0 - prob)
+    )
 
 
 @njit(cache=True)
@@ -67,8 +72,7 @@ def _nb_exact_loop(s1, s2, s, mu1, dispersion, remaining_mask, n1, n2, pvals, wo
             # Left tail: x = 0..s1[g]
             count = s1[g] + 1
             for x in range(count):
-                work_buf[x] = (_nb_logpmf(x, size1, prob1)
-                               + _nb_logpmf(s[g] - x, size2, prob2))
+                work_buf[x] = _nb_logpmf(x, size1, prob1) + _nb_logpmf(s[g] - x, size2, prob2)
             log_sum_top = _logsumexp_1d(work_buf, count)
             log_p_bot = _nb_logpmf(s[g], size_total, prob_total)
             log_pval = log2 + log_sum_top - log_p_bot
@@ -79,8 +83,7 @@ def _nb_exact_loop(s1, s2, s, mu1, dispersion, remaining_mask, n1, n2, pvals, wo
             count = s[g] - s1[g] + 1
             for idx in range(count):
                 x = s1[g] + idx
-                work_buf[idx] = (_nb_logpmf(x, size1, prob1)
-                                 + _nb_logpmf(s[g] - x, size2, prob2))
+                work_buf[idx] = _nb_logpmf(x, size1, prob1) + _nb_logpmf(s[g] - x, size2, prob2)
             log_sum_top = _logsumexp_1d(work_buf, count)
             log_p_bot = _nb_logpmf(s[g], size_total, prob_total)
             log_pval = log2 + log_sum_top - log_p_bot
@@ -89,8 +92,9 @@ def _nb_exact_loop(s1, s2, s, mu1, dispersion, remaining_mask, n1, n2, pvals, wo
         # else s1[g] == mu1[g]: pvals[g] stays 1.0
 
 
-def exact_test(y, pair=None, dispersion='auto', rejection_region='doubletail',
-               big_count=900, prior_count=0.125):
+def exact_test(
+    y, pair=None, dispersion="auto", rejection_region="doubletail", big_count=900, prior_count=0.125
+):
     """Exact test for differential expression between two groups.
 
     Port of edgeR's exactTest.
@@ -114,10 +118,10 @@ def exact_test(y, pair=None, dispersion='auto', rejection_region='doubletail',
     -------
     dict (DGEExact-like) with 'table', 'comparison', 'genes'.
     """
-    if not (isinstance(y, dict) and 'counts' in y):
+    if not (isinstance(y, dict) and "counts" in y):
         raise ValueError("Currently only supports DGEList objects.")
 
-    group = np.asarray(y['samples']['group'].values)
+    group = np.asarray(y["samples"]["group"].values)
     unique_groups = np.unique(group)
 
     if pair is None:
@@ -130,20 +134,21 @@ def exact_test(y, pair=None, dispersion='auto', rejection_region='doubletail',
     unique_group_labels = np.array([str(g) for g in unique_groups])
 
     # Get dispersion
-    if dispersion is None or dispersion == 'auto':
+    if dispersion is None or dispersion == "auto":
         from .dgelist import get_dispersion
+
         dispersion = get_dispersion(y)
         if dispersion is None:
             raise ValueError("No dispersion values found in DGEList object.")
     elif isinstance(dispersion, str):
-        valid = ('common', 'trended', 'tagwise')
+        valid = ("common", "trended", "tagwise")
         if dispersion not in valid:
             raise ValueError(f"dispersion must be one of {valid}")
-        dispersion = y.get(f'{dispersion}.dispersion')
+        dispersion = y.get(f"{dispersion}.dispersion")
         if dispersion is None:
             raise ValueError("Specified dispersion not found in object")
 
-    ntags = y['counts'].shape[0]
+    ntags = y["counts"].shape[0]
     dispersion = np.atleast_1d(np.asarray(dispersion, dtype=np.float64))
     if len(dispersion) == 1:
         dispersion = np.full(ntags, dispersion[0])
@@ -154,9 +159,9 @@ def exact_test(y, pair=None, dispersion='auto', rejection_region='doubletail',
         raise ValueError(
             f"No samples matched pair={pair}. Available groups: {unique_group_labels.tolist()}"
         )
-    counts = y['counts'][:, j]
-    lib_size = y['samples']['lib.size'].values[j]
-    norm_factors = y['samples']['norm.factors'].values[j]
+    counts = y["counts"][:, j]
+    lib_size = y["samples"]["lib.size"].values[j]
+    norm_factors = y["samples"]["norm.factors"].values[j]
     group_sub = group[j]
 
     lib_size = lib_size * norm_factors
@@ -180,12 +185,13 @@ def exact_test(y, pair=None, dispersion='auto', rejection_region='doubletail',
     y2 = counts[:, j2]
 
     from .glm_fit import mglm_one_group
+
     abundance1 = mglm_one_group(
-        y1 + np.tile(pc[j1], (ntags, 1)),
-        offset=offset_aug[j1], dispersion=dispersion)
+        y1 + np.tile(pc[j1], (ntags, 1)), offset=offset_aug[j1], dispersion=dispersion
+    )
     abundance2 = mglm_one_group(
-        y2 + np.tile(pc[j2], (ntags, 1)),
-        offset=offset_aug[j2], dispersion=dispersion)
+        y2 + np.tile(pc[j2], (ntags, 1)), offset=offset_aug[j2], dispersion=dispersion
+    )
     logFC = (abundance2 - abundance1) / np.log(2)
 
     # Equalize library sizes
@@ -201,35 +207,29 @@ def exact_test(y, pair=None, dispersion='auto', rejection_region='doubletail',
     y2_eq = q2q_nbinom(y2.astype(float), input_mean2, output_mean2, dispersion)
 
     # Exact p-values
-    if rejection_region == 'doubletail':
-        exact_pvals = exact_test_double_tail(y1_eq, y2_eq, dispersion=dispersion,
-                                              big_count=big_count)
-    elif rejection_region == 'deviance':
+    if rejection_region == "doubletail":
+        exact_pvals = exact_test_double_tail(
+            y1_eq, y2_eq, dispersion=dispersion, big_count=big_count
+        )
+    elif rejection_region == "deviance":
         exact_pvals = exact_test_by_deviance(y1_eq, y2_eq, dispersion=dispersion)
     else:
         exact_pvals = exact_test_by_small_p(y1_eq, y2_eq, dispersion=dispersion)
 
     from .expression import ave_log_cpm
-    alc = y.get('AveLogCPM')
+
+    alc = y.get("AveLogCPM")
     if alc is None:
         alc = ave_log_cpm(y)
 
-    table = pd.DataFrame({
-        'logFC': logFC,
-        'logCPM': alc,
-        'PValue': exact_pvals
-    })
+    table = pd.DataFrame({"logFC": logFC, "logCPM": alc, "PValue": exact_pvals})
     rn = None
-    if hasattr(y['counts'], 'index'):
-        rn = y['counts'].index
+    if hasattr(y["counts"], "index"):
+        rn = y["counts"].index
     if rn is not None:
         table.index = rn
 
-    return {
-        'table': table,
-        'comparison': pair,
-        'genes': y.get('genes')
-    }
+    return {"table": table, "comparison": pair, "genes": y.get("genes")}
 
 
 def exact_test_double_tail(y1, y2, dispersion=0, big_count=900):
@@ -277,9 +277,18 @@ def exact_test_double_tail(y1, y2, dispersion=0, big_count=900):
     if np.any(remaining):
         max_s = int(np.max(s[remaining])) + 1
         work_buf = np.empty(max(max_s, 1), dtype=np.float64)
-        _nb_exact_loop(s1.astype(np.int64), s2.astype(np.int64),
-                       s.astype(np.int64), mu1, dispersion,
-                       remaining, n1, n2, pvals, work_buf)
+        _nb_exact_loop(
+            s1.astype(np.int64),
+            s2.astype(np.int64),
+            s.astype(np.int64),
+            mu1,
+            dispersion,
+            remaining,
+            n1,
+            n2,
+            pvals,
+            work_buf,
+        )
 
     return np.minimum(pvals, 1.0)
 
@@ -321,8 +330,9 @@ def _exact_test_beta_approx(y1, y2, dispersion):
     y = s1 + s2
 
     ntags = len(s1)
-    dispersion = np.broadcast_to(np.atleast_1d(np.asarray(dispersion, dtype=np.float64)),
-                                 (ntags,)).copy()
+    dispersion = np.broadcast_to(
+        np.atleast_1d(np.asarray(dispersion, dtype=np.float64)), (ntags,)
+    ).copy()
 
     mu = y / (n1 + n2)
     pvals = np.ones(ntags)
@@ -340,14 +350,14 @@ def _exact_test_beta_approx(y1, y2, dispersion):
     # Left tail with continuity correction
     left = ((s1 + 0.5) / y < med) & ~all_zero
     if np.any(left):
-        pvals[left] = 2.0 * beta_dist.cdf((s1[left] + 0.5) / y[left],
-                                            alpha1[left], alpha2[left])
+        pvals[left] = 2.0 * beta_dist.cdf((s1[left] + 0.5) / y[left], alpha1[left], alpha2[left])
 
     # Right tail with continuity correction
     right = ((s1 - 0.5) / y > med) & ~all_zero
     if np.any(right):
-        pvals[right] = 2.0 * beta_dist.sf((s1[right] - 0.5) / y[right],
-                                            alpha1[right], alpha2[right])
+        pvals[right] = 2.0 * beta_dist.sf(
+            (s1[right] - 0.5) / y[right], alpha1[right], alpha2[right]
+        )
 
     return np.minimum(pvals, 1.0)
 
@@ -372,17 +382,19 @@ def equalize_lib_sizes(y, group=None, dispersion=None, lib_size=None):
     -------
     dict with 'pseudo.counts' and 'pseudo.lib.size'.
     """
-    if isinstance(y, dict) and 'counts' in y:
+    if isinstance(y, dict) and "counts" in y:
         dge = y
         from .dgelist import valid_dgelist, get_dispersion
+
         dge = valid_dgelist(dge)
         if dispersion is None:
             dispersion = get_dispersion(dge)
-        ls = dge['samples']['lib.size'].values * dge['samples']['norm.factors'].values
-        out = equalize_lib_sizes(dge['counts'], group=dge['samples']['group'].values,
-                                  dispersion=dispersion, lib_size=ls)
-        dge['pseudo.counts'] = out['pseudo.counts']
-        dge['pseudo.lib.size'] = out['pseudo.lib.size']
+        ls = dge["samples"]["lib.size"].values * dge["samples"]["norm.factors"].values
+        out = equalize_lib_sizes(
+            dge["counts"], group=dge["samples"]["group"].values, dispersion=dispersion, lib_size=ls
+        )
+        dge["pseudo.counts"] = out["pseudo.counts"]
+        dge["pseudo.lib.size"] = out["pseudo.lib.size"]
         return dge
 
     y = np.asarray(y, dtype=np.float64)
@@ -408,10 +420,10 @@ def equalize_lib_sizes(y, group=None, dispersion=None, lib_size=None):
     output_mean = np.zeros_like(y)
 
     from .glm_fit import mglm_one_group
+
     for grp in unique_groups:
         j = group == grp
-        beta = mglm_one_group(y[:, j], dispersion=dispersion,
-                              offset=np.log(lib_size[j]))
+        beta = mglm_one_group(y[:, j], dispersion=dispersion, offset=np.log(lib_size[j]))
         lam = np.exp(beta)
         input_mean[:, j] = np.outer(lam, lib_size[j])
         output_mean[:, j] = np.outer(lam, np.full(np.sum(j), common_lib_size))
@@ -419,7 +431,7 @@ def equalize_lib_sizes(y, group=None, dispersion=None, lib_size=None):
     pseudo = q2q_nbinom(y, input_mean, output_mean, dispersion)
     pseudo = np.maximum(pseudo, 0)
 
-    return {'pseudo.counts': pseudo, 'pseudo.lib.size': common_lib_size}
+    return {"pseudo.counts": pseudo, "pseudo.lib.size": common_lib_size}
 
 
 def q2q_nbinom(x, input_mean, output_mean, dispersion=0):
@@ -531,4 +543,4 @@ def split_into_groups_pseudo(pseudo, group, pair):
     if y2.ndim == 1:
         y2 = y2.reshape(-1, 1)
 
-    return {'y1': y1, 'y2': y2}
+    return {"y1": y1, "y2": y2}
